@@ -1,0 +1,12 @@
+artifacts/
+dist/
+*.user
+
+# 本机开发记录、运行数据与凭据
+/VALIDATION.md
+/inbox/
+settings.json
+.env
+.env.*
+*.pfx
+*.key
