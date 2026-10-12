@@ -7,6 +7,8 @@ $destination = Join-Path $PSScriptRoot 'dist'
 New-Item -ItemType Directory -Force -Path $destination | Out-Null
 $references = @('System.dll','System.Core.dll','System.Drawing.dll','System.Windows.Forms.dll','System.Runtime.Serialization.dll','System.Xaml.dll','WPF\WindowsBase.dll','WPF\PresentationCore.dll','WPF\PresentationFramework.dll')
 $arguments = @('/nologo','/target:winexe','/platform:x64','/optimize+','/warn:4',('/out:' + (Join-Path $destination 'Snapline.exe')),('/win32manifest:' + (Join-Path $PSScriptRoot 'src\app.manifest')))
+$arguments += '/win32icon:' + (Join-Path $PSScriptRoot 'assets\snapline.ico')
+$arguments += '/resource:' + (Join-Path $PSScriptRoot 'assets\snapline.ico') + ',Snapline.AppIcon.ico'
 foreach ($reference in $references) { $arguments += '/reference:' + (Join-Path $framework $reference) }
 $arguments += @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'src') -Filter '*.cs' | ForEach-Object { $_.FullName })
 & $compiler @arguments

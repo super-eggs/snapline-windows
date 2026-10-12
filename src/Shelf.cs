@@ -56,6 +56,7 @@ namespace Snapline
         {
             this.store = store; this.demo = demo;
             Title = "截图晾衣绳"; Width = 1100; Height = 350;
+            Icon = AppIcon.WindowImage();
             WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
             AllowsTransparency = true; Background = Brushes.Transparent;
             ShowInTaskbar = false; Topmost = store.Settings.Layer == WindowLayer.Top; ShowActivated = false;

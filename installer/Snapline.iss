@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.0.1"
 #endif
 
 [Setup]
@@ -22,6 +22,7 @@ OutputBaseFilename=Snapline-Setup-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\assets\snapline.ico
 UninstallDisplayIcon={app}\Snapline.exe
 CloseApplications=yes
 RestartApplications=no

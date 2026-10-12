@@ -88,6 +88,21 @@ namespace Snapline
             try
             {
                 Directory.CreateDirectory(root);
+                using (var stream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("Snapline.AppIcon.ico"))
+                {
+                    var decoder = new IconBitmapDecoder(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+                    Check(decoder.Frames.Select(frame => frame.PixelWidth).OrderBy(size => size).SequenceEqual(new[] { 16, 20, 24, 32, 40, 48, 64, 128, 256 }), "embedded icon contains all nine Windows DPI sizes");
+                    foreach (var frame in decoder.Frames)
+                    {
+                        var pixels = PixelBytes(frame);
+                        Check(pixels[3] == 0 && Enumerable.Range(0, pixels.Length / 4).Any(i => pixels[i * 4 + 3] > 240), "icon preserves transparent corners and visible content at " + frame.PixelWidth + "px");
+                    }
+                }
+                using (var icon = AppIcon.TrayImage())
+                    Check(icon.Width == 32 && icon.Height == 32 && icon.Handle != IntPtr.Zero, "tray icon loads from embedded resource with valid native handle");
+                using (var icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location))
+                using (var bitmap = icon.ToBitmap())
+                    Check(Enumerable.Range(0, bitmap.Width).Any(x => Enumerable.Range(0, bitmap.Height).Any(y => { var color = bitmap.GetPixel(x, y); return color.A > 200 && color.B > color.R + 30; })), "compiled executable exposes the blue Snapline icon to Windows Shell");
                 byte[] invisiblePixels = new byte[] { 30, 90, 210, 0, 220, 150, 40, 0 };
                 var invisible = BitmapSource.Create(2, 1, 96, 96, PixelFormats.Bgra32, null, invisiblePixels, 8);
                 var recovered = ClipboardImages.Read(delegate(string format) { return null; }, delegate { return invisible; });
@@ -187,6 +202,7 @@ namespace Snapline
                 Check(edited.PixelWidth == first.PixelWidth && edited.PixelHeight == first.PixelHeight && Store.Hash(Store.Encode(edited)) != Store.Hash(Store.Encode(first)), "annotation render preserves dimensions and adds ink");
                 store.Add(App.DemoImage(1)); store.Add(App.DemoImage(2));
                 shelf = new Shelf(store, true);
+                Check(shelf.Icon != null && shelf.Icon.IsFrozen, "shelf window uses the embedded application icon");
                 DateTime opened = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc);
                 shelf.BeginReveal(true, opened);
                 Check(!shelf.AutoHideDue(false, opened.AddSeconds(1)) && !shelf.AutoHideDue(false, opened.AddMinutes(10)), "manual reveal stays visible with pointer outside");
@@ -322,6 +338,7 @@ namespace Snapline
                 var previewStore = new Store(Path.Combine(root, "preview"));
                 previewStore.Add(ShapeImage(1000, 640, "图片预览"));
                 var editor = new Preview(previewStore, previewStore.Items[0], true);
+                Check(editor.Icon != null && editor.Icon.IsFrozen, "preview window uses the embedded application icon");
                 try
                 {
                     var editorContent = (FrameworkElement)editor.Content;

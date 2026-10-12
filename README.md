@@ -1,5 +1,7 @@
 # 截图晾衣绳 · Snapline for Windows
 
+<img src="assets/snapline-icon.png" alt="Snapline 应用图标" width="96">
+
 Windows 10/11 x64 原生桌面截图收纳工具。使用 WPF / .NET Framework 4.8，无第三方依赖、不联网。交互参考 Tendedero，Windows 实现独立编写。
 
 ## 下载与安装

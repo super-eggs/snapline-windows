@@ -29,6 +29,7 @@ namespace Snapline
         internal Preview(Store store, Shot shot, bool editing)
         {
             Title = "截图预览";
+            Icon = AppIcon.WindowImage();
             Width = Math.Min(1100, SystemParameters.WorkArea.Width - 80);
             Height = Math.Min(800, SystemParameters.WorkArea.Height - 80);
             MinWidth = 420; MinHeight = 320; WindowStartupLocation = WindowStartupLocation.CenterScreen;

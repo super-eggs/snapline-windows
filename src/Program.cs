@@ -207,7 +207,7 @@ namespace Snapline
         private void SetupTray()
         {
             tray = new Forms.NotifyIcon();
-            tray.Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            tray.Icon = AppIcon.TrayImage();
             tray.Text = demo ? "截图晾衣绳 · 演示模式" : "截图晾衣绳";
             var menu = new Forms.ContextMenuStrip();
             menu.Items.Add("显示 / 隐藏    Ctrl+Alt+T", null, delegate { shelf.Toggle(); });
@@ -285,7 +285,7 @@ namespace Snapline
             if (clipboardTimer != null) clipboardTimer.Stop();
             if (collector != null) collector.Dispose();
             if (shelf != null) shelf.Dispose();
-            if (tray != null) { tray.Visible = false; tray.Dispose(); }
+            if (tray != null) { tray.Visible = false; var icon = tray.Icon; tray.Dispose(); if (icon != null) icon.Dispose(); }
             if (demoRoot != null && Path.GetDirectoryName(Path.GetFullPath(demoRoot)).TrimEnd(Path.DirectorySeparatorChar) == Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar) && Path.GetFileName(demoRoot).StartsWith("Snapline-demo-", StringComparison.Ordinal))
             {
                 try { Directory.Delete(demoRoot, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
