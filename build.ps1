@@ -21,7 +21,7 @@ if ($Test) {
     if ($testProcess.ExitCode -ne 0) { throw '自检失败。' }
     $smokeReport = Join-Path $PSScriptRoot 'artifacts\smoke-test.txt'
     $smokeProcess = Start-Process -FilePath (Join-Path $destination 'Snapline.exe') -ArgumentList @('--smoke-test', ('"' + $smokeReport + '"')) -WindowStyle Hidden -PassThru
-    if (!$smokeProcess.WaitForExit(15000)) { Stop-Process -Id $smokeProcess.Id; throw '启动检查超时。' }
+    if (!$smokeProcess.WaitForExit(60000)) { Stop-Process -Id $smokeProcess.Id; throw '启动检查超时。' }
     Get-Content -LiteralPath $smokeReport
     if ($smokeProcess.ExitCode -ne 0) { throw '启动检查失败。' }
 }

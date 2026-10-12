@@ -1,0 +1,50 @@
+name: Build and publish Windows release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate version tag
+        shell: pwsh
+        run: |
+          $source = Get-Content src/AssemblyInfo.cs -Raw
+          $version = [regex]::Match($source, 'AssemblyFileVersion\("(\d+\.\d+\.\d+)\.0"\)').Groups[1].Value
+          if (!$version -or $env:GITHUB_REF_NAME -ne "v$version") { throw 'Tag must match AssemblyFileVersion (vMAJOR.MINOR.PATCH).' }
+      - name: Build and test
+        shell: pwsh
+        run: ./build.ps1 -Test
+      - name: Package installer and portable archive
+        shell: pwsh
+        run: |
+          $setup = Join-Path $env:RUNNER_TEMP 'innosetup.exe'
+          $tools = Join-Path $env:RUNNER_TEMP 'inno'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_4_3/innosetup-6.4.3.exe' -OutFile $setup
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash
+          if ($hash -ne 'F3C42116542C4CC57263C5BA6C4FEABFC49FE771F2F98A79D2F7628B8762723B') { throw 'Inno Setup checksum mismatch.' }
+          $process = Start-Process $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', ('/DIR="' + $tools + '"')) -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'Inno Setup installation failed.' }
+          ./package.ps1 -ISCC (Join-Path $tools 'ISCC.exe')
+      - name: Test installation and uninstallation
+        shell: pwsh
+        run: ./installer/test-install.ps1
+      - name: Preserve validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation
+          path: artifacts/*.txt
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME artifacts/release/Snapline-Setup-x64.exe artifacts/release/Snapline-Portable-x64.zip artifacts/release/SHA256SUMS.txt --verify-tag --title "Snapline $env:GITHUB_REF_NAME" --notes-file .github/release-notes.md --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
