@@ -2,12 +2,15 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace Snapline
 {
@@ -83,11 +86,13 @@ namespace Snapline
         }
         internal static int Run(string report)
         {
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
             string root = Path.Combine(Path.GetTempPath(), "Snapline-tests-" + Guid.NewGuid().ToString("N"));
             Shelf shelf = null;
             try
             {
                 Directory.CreateDirectory(root);
+                StartupRegistrationTests.Run(root, Check);
                 using (var stream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("Snapline.AppIcon.ico"))
                 {
                     var decoder = new IconBitmapDecoder(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
@@ -176,23 +181,23 @@ namespace Snapline
                 string folder = Path.Combine(root, "watch"); Directory.CreateDirectory(folder);
                 File.Copy(original, Path.Combine(folder, "existing.png"));
                 int collected = 0, errors = 0;
-                using (var collector = new FolderCollector(folder, delegate(BitmapSource image) { collected++; }, delegate(string message) { errors++; }))
+                using (var collector = new FolderCollector(folder, delegate(string path) { Store.ReadImage(path); collected++; return Task.FromResult(true); }, delegate(string message) { errors++; }))
                 {
-                    collector.Scan(); collector.Scan(); Check(collected == 0, "watch skips existing library");
+                    CollectionTests.Wait(collector.ScanAsync()); CollectionTests.Wait(collector.ScanAsync()); Check(collected == 0, "watch skips existing library");
                     string next = Path.Combine(folder, "new.png"); File.Copy(original, next);
-                    collector.Scan(); Check(collected == 0, "watch waits for stable file");
-                    collector.Scan(); collector.Scan(); Check(collected == 1, "watch collects new image once");
+                    CollectionTests.Wait(collector.ScanAsync()); Check(collected == 0, "watch waits for stable file");
+                    CollectionTests.Wait(collector.ScanAsync()); CollectionTests.Wait(collector.ScanAsync()); Check(collected == 1, "watch collects new image once");
                     File.WriteAllText(Path.Combine(folder, "broken.png"), "invalid");
-                    for (int i = 0; i < 14; i++) collector.Scan();
+                    for (int i = 0; i < 14; i++) CollectionTests.Wait(collector.ScanAsync());
                     Check(errors == 1 && collected == 1, "corrupt file has bounded retries");
-                    File.Delete(next); collector.Scan(); File.Copy(original, next); collector.Scan(); collector.Scan();
+                    File.Delete(next); CollectionTests.Wait(collector.ScanAsync()); File.Copy(original, next); CollectionTests.Wait(collector.ScanAsync()); CollectionTests.Wait(collector.ScanAsync());
                     Check(collected == 2, "watch supports deleted then recreated file");
                 }
                 string absent = Path.Combine(root, "created-later"); int firstCapture = 0;
-                using (var collector = new FolderCollector(absent, delegate(BitmapSource image) { firstCapture++; }, delegate(string message) { }))
+                using (var collector = new FolderCollector(absent, delegate(string path) { firstCapture++; return Task.FromResult(true); }, delegate(string message) { }))
                 {
-                    collector.Scan(); Directory.CreateDirectory(absent); File.Copy(original, Path.Combine(absent, "first.png"));
-                    collector.Scan(); collector.Scan();
+                    CollectionTests.Wait(collector.ScanAsync()); Directory.CreateDirectory(absent); File.Copy(original, Path.Combine(absent, "first.png"));
+                    CollectionTests.Wait(collector.ScanAsync()); CollectionTests.Wait(collector.ScanAsync());
                     Check(firstCapture == 1, "initially absent screenshot directory collects first capture");
                 }
                 var ink = new InkCanvas { Width = first.PixelWidth, Height = first.PixelHeight, Background = new ImageBrush(first) };
@@ -262,21 +267,24 @@ namespace Snapline
                 for (int i = 0; i < 30; i++) shelf.StepScroll(16);
                 Check(Math.Abs(shelf.ScrollOffset - shelf.ScrollTarget) < .3, "scroll animation settles on target");
                 var canvas = Descendants<Canvas>(content).Single();
-                var anchorView = canvas.Children.OfType<Border>().First(view => Canvas.GetLeft(view) + view.Width > 16);
+                var anchorView = canvas.Children.OfType<Border>().First(view => view.Visibility == Visibility.Visible && view.TransformToAncestor(canvas).Transform(new Point()).X + view.Width > 16);
                 var anchorSource = Descendants<Image>(anchorView).Single().Source;
-                double anchorBefore = Canvas.GetLeft(anchorView);
+                double anchorBefore = anchorView.TransformToAncestor(canvas).Transform(new Point()).X;
                 store.Add(ShapeImage(440, 280, "新截图"));
                 VerifyLayout(content, shelf.Width, shelf.Height, "capture inserted while browsing");
                 var anchorAfterView = canvas.Children.OfType<Border>().Single(view => ReferenceEquals(Descendants<Image>(view).Single().Source, anchorSource));
-                Check(Math.Abs(Canvas.GetLeft(anchorAfterView) - anchorBefore) < .01, "incoming capture preserves the same visible image and screen position");
+                Check(Math.Abs(anchorAfterView.TransformToAncestor(canvas).Transform(new Point()).X - anchorBefore) < .01, "incoming capture preserves the same visible image and screen position");
+                Check(ReferenceEquals(anchorView, anchorAfterView), "incoming capture reuses existing card controls");
                 shelf.ScrollBy(100000);
                 for (int i = 0; i < 50; i++) shelf.StepScroll(16);
                 Check(Math.Abs(shelf.ScrollOffset - shelf.MaxScroll) < .3 && !shelf.ScrollRightButton.IsEnabled, "right edge clamps without overscroll");
                 foreach (var view in canvas.Children.OfType<Border>())
                 {
-                    double x = Canvas.GetLeft(view);
+                    if (view.Visibility != Visibility.Visible) continue;
+                    Point position = view.TransformToAncestor(canvas).Transform(new Point());
+                    double x = position.X;
                     if (x + view.Width < 0 || x > shelf.Width) continue;
-                    Check(Math.Abs(Canvas.GetTop(view) - Clothesline.DropAt((x + view.Width / 2) / shelf.Width, shelf.Width)) < .01, "visible clip follows fixed rope after scrolling");
+                    Check(Math.Abs(position.Y - Clothesline.DropAt((x + view.Width / 2) / shelf.Width, shelf.Width)) < .01, "visible clip follows fixed rope after scrolling");
                 }
                 shelf.ScrollLeftButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Check(shelf.ScrollTarget < shelf.ScrollOffset, "edge arrow moves continuously toward left");
@@ -312,6 +320,23 @@ namespace Snapline
                     VerifyLayout(shapeContent, shapeShelf.Width, shapeShelf.Height, "full screen mixed screenshot shapes");
                     var rope = Descendants<Clothesline>(shapeContent).Single();
                     Check(shapeShelf.Width == 2560 && Math.Abs(rope.ActualWidth - 2560) < 1 && Math.Abs(rope.TransformToAncestor(shapeContent).Transform(new Point()).X) < 1, "rope spans complete screen width without old maximum or side padding");
+                    Point ropeOrigin = rope.TransformToAncestor(shapeContent).Transform(new Point());
+                    foreach (var clothespin in Descendants<Clothespin>(shapeContent))
+                    {
+                        Point grip = clothespin.TransformToAncestor(shapeContent).Transform(Clothespin.GripPoint);
+                        double ropeY = ropeOrigin.Y + Clothesline.RopeY + Clothesline.DropAt((grip.X - ropeOrigin.X) / rope.ActualWidth, rope.ActualWidth);
+                        Check(Math.Abs(grip.Y - ropeY) < .6, "closed clamp jaws meet the rope instead of the spring");
+                        var frame = ((StackPanel)VisualTreeHelper.GetParent(clothespin)).Children.OfType<Border>().Single();
+                        Point paperTop = frame.TransformToAncestor(shapeContent).Transform(new Point());
+                        Point jawBottom = clothespin.TransformToAncestor(shapeContent).Transform(new Point(9, clothespin.Height));
+                        Check(Math.Abs(paperTop.Y - grip.Y) < .6 && jawBottom.Y - paperTop.Y >= 3, "paper edge sits inside the closed clamp jaws");
+                        var card = (Border)VisualTreeHelper.GetParent(VisualTreeHelper.GetParent(clothespin));
+                        card.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, Environment.TickCount) { RoutedEvent = Mouse.MouseEnterEvent });
+                        shapeContent.UpdateLayout();
+                        Check(ReferenceEquals(frame.BorderBrush, Ui.Accent) && !frame.RenderTransform.HasAnimatedProperties
+                            && frame.TransformToAncestor(shapeContent).Transform(new Point()) == paperTop, "hover feedback keeps paper clamped in place");
+                        card.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, Environment.TickCount) { RoutedEvent = Mouse.MouseLeaveEvent });
+                    }
                     Check(!Descendants<TextBlock>(shapeContent).Any(text => text.Visibility == Visibility.Visible && (text.Text.Contains("最近") || text.Text.Contains("单击复制") || text.Text == "截图晾衣绳")), "persistent explanatory labels removed");
                     Check(shapeShelf.ScrollLeftButton.Visibility == Visibility.Collapsed && shapeShelf.ScrollRightButton.Visibility == Visibility.Collapsed, "edge arrows stay hidden when captures fit");
                     foreach (Shot shape in shapeStore.Items)
@@ -333,10 +358,34 @@ namespace Snapline
                     Check(((LinearGradientBrush)Descendants<Canvas>(shapeContent).Single().OpacityMask).GradientStops[0].Color.A == 0, "overflow edge fades indicate hidden captures");
                     shapeShelf.ApplyLayout(2560);
                     Check(shapeShelf.ScrollOffset <= shapeShelf.MaxScroll && shapeShelf.ScrollTarget <= shapeShelf.MaxScroll, "resizing clamps scroll range safely");
+                    var shapeCards = Descendants<Canvas>(shapeContent).Single();
+                    var existingViews = shapeCards.Children.OfType<Border>().ToArray();
+                    VerifyLayout(shapeContent, shapeShelf.Width, shapeShelf.Height, "cached card layout");
+                    shapeShelf.ApplyLayout(2560);
+                    Check(shapeContent.IsArrangeValid && existingViews.SequenceEqual(shapeCards.Children.OfType<Border>()), "same-monitor layout keeps existing controls and valid WPF arrangement");
+                    shapeShelf.RenderCards();
+                    Check(existingViews.SequenceEqual(shapeCards.Children.OfType<Border>()), "unchanged cards survive a collection refresh");
+                    shapeShelf.ApplyLayout(480);
+                    Check(shapeCards.Children.OfType<Border>().Count(view => view.Visibility == Visibility.Visible) < shapeStore.Items.Count, "offscreen cards do not render their images and shadows");
+                    shapeShelf.ScrollBy(300); shapeShelf.StepScroll(16);
+                    var fadeMask = shapeCards.OpacityMask;
+                    shapeShelf.StepScroll(16);
+                    Check(ReferenceEquals(fadeMask, shapeCards.OpacityMask), "scrolling within the same edge state reuses its fade mask");
+                    var editedShot = shapeStore.Items[0]; var oldThumbnail = editedShot.Image;
+                    shapeStore.Replace(editedShot, ShapeImage(800, 450, "更新截图"));
+                    Check(!Descendants<Image>(shapeCards).Any(image => ReferenceEquals(image.Source, oldThumbnail))
+                        && Descendants<Image>(shapeCards).Any(image => ReferenceEquals(image.Source, editedShot.Image)), "cached cards refresh an edited image source");
+                    foreach (var item in shapeStore.Items.ToArray()) shapeStore.Remove(item);
+                    Check(!Descendants<Image>(shapeCards).Any() && Descendants<Button>(shapeCards).Any(button => Equals(button.Content, "导入图片")), "removing all cached cards restores empty-state import");
+                    shapeStore.Add(ShapeImage(400, 300, "重新收集"));
+                    Check(Descendants<Image>(shapeCards).Count() == 1 && !Descendants<Button>(shapeCards).Any(button => Equals(button.Content, "导入图片")), "new capture removes cached empty state");
                 }
                 finally { shapeShelf.Dispose(); shapeShelf.Close(); }
                 var previewStore = new Store(Path.Combine(root, "preview"));
-                previewStore.Add(ShapeImage(1000, 640, "图片预览"));
+                string previewSource = Path.Combine(root, "preview-source.png");
+                byte[] previewSourceBytes = Store.Encode(ShapeImage(1000, 640, "图片预览"));
+                File.WriteAllBytes(previewSource, previewSourceBytes);
+                previewStore.Import(previewSource);
                 var editor = new Preview(previewStore, previewStore.Items[0], true);
                 Check(editor.Icon != null && editor.Icon.IsFrozen, "preview window uses the embedded application icon");
                 try
@@ -347,6 +396,15 @@ namespace Snapline
                     SaveLayout(editorContent, 420, 600, 1, Path.Combine(artifacts, "editor-narrow.png"));
                     VerifyLayout(editorContent, 1100, 760, "wide preview viewport"); editor.FitImage(); editorContent.UpdateLayout();
                     Check(Descendants<Button>(editorContent).Where(button => !Equals(button.Tag, "")).All(button => button.Content is System.Windows.Shapes.Path), "preview actions use vector icons instead of text labels");
+                    foreach (var button in Descendants<Button>(editorContent))
+                    {
+                        var icon = button.Content as System.Windows.Shapes.Path;
+                        if (icon == null) continue;
+                        var clip = VisualTreeHelper.GetClip(icon);
+                        var inkBounds = VisualTreeHelper.GetDrawing(icon).Bounds;
+                        Check(clip == null || Rect.Inflate(clip.Bounds, .01, .01).Contains(inkBounds),
+                            "preview icon keeps its complete stroke inside the layout clip: " + button.Tag);
+                    }
                     Check(Descendants<Button>(editorContent).All(button => !string.IsNullOrWhiteSpace(System.Windows.Automation.AutomationProperties.GetName(button))), "icon controls retain accessible operation names");
                     var zoomControl = Descendants<Slider>(editorContent).Single();
                     zoomControl.Value = Math.Log(.5);
@@ -387,6 +445,15 @@ namespace Snapline
                     previewStore.SetLayer(WindowLayer.Top); Check(editor.Topmost, "preview restores always-on-top dynamically");
                     VerifyLayout(editorContent, 1100, 760, "minimal image preview"); editor.FitImage(); editorContent.UpdateLayout();
                     SaveLayout(editorContent, 1100, 760, 1, Path.Combine(artifacts, "preview-viewer.png"));
+                    var deletedShot = previewStore.Items[0];
+                    bool deletionNotified = false, previewClosed = false;
+                    previewStore.Changed += delegate { deletionNotified = true; };
+                    editor.Closed += delegate { previewClosed = true; };
+                    Descendants<Button>(editorContent).Single(button => Equals(button.Tag, "delete")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Check(!File.Exists(deletedShot.Path) && !previewStore.Items.Contains(deletedShot), "preview delete button removes the displayed app copy from disk and collection");
+                    Check(deletionNotified && previewClosed, "preview deletion notifies the shelf and closes the preview");
+                    Check(File.ReadAllBytes(previewSource).SequenceEqual(previewSourceBytes), "preview deletion preserves the imported source image");
+                    Check(new Store(previewStore.Root).Items.Count == 0, "deleted preview image stays removed after restart");
                 }
                 finally { editor.Close(); }
                 var bounded = new Store(Path.Combine(root, "bounded"));
@@ -396,6 +463,11 @@ namespace Snapline
                     bounded.Add(BitmapSource.Create(1, 1, 96, 96, PixelFormats.Bgra32, null, pixels, 4));
                 }
                 Check(bounded.Items.Count == Store.Limit && Directory.GetFiles(bounded.Inbox, "*.png").Length == Store.Limit + 1, "bounded shelf retains older files");
+                CaptureTests.Run(root, artifacts, Check);
+                ControlDetectionTests.Run(Check);
+                SnipasteToolsTests.Run(root, artifacts, Check);
+                CollectionTests.Run(root, Check);
+                MemoryTests.Run(root, Check);
                 log.AppendLine("RESULT: " + count + " checks passed");
                 return 0;
             }

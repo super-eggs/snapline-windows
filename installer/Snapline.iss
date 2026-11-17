@@ -43,6 +43,16 @@ Name: "{autodesktop}\Snapline"; Filename: "{app}\Snapline.exe"; Tasks: desktopic
 Filename: "{app}\Snapline.exe"; Description: "Launch Snapline"; Flags: nowait postinstall skipifsilent
 
 [Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Command: String;
+begin
+  if CurUninstallStep = usUninstall then
+    if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Snapline', Command) then
+      if CompareText(Command, '"' + ExpandConstant('{app}\Snapline.exe') + '" --startup') = 0 then
+        RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Snapline');
+end;
+
 function InitializeSetup(): Boolean;
 var
   Release: Cardinal;

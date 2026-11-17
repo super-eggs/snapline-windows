@@ -16,9 +16,17 @@ namespace Snapline
             if (hwnd != IntPtr.Zero)
                 SetWindowPos(hwnd, new IntPtr(layer == WindowLayer.Top ? -1 : layer == WindowLayer.Bottom ? 1 : -2), 0, 0, 0, 0, 0x0013);
         }
+        internal static void DarkTitleBar(System.Windows.Window window)
+        {
+            int enabled = 1;
+            // Older Windows 10 builds ignore this appearance hint and retain their native caption.
+            DwmSetWindowAttribute(new System.Windows.Interop.WindowInteropHelper(window).Handle, 20, ref enabled, sizeof(int));
+        }
+        [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
         [StructLayout(LayoutKind.Sequential)] internal struct Point { public int X, Y; }
         [StructLayout(LayoutKind.Sequential)] internal struct Rect { public int Left, Top, Right, Bottom; }
         [DllImport("user32.dll")] internal static extern bool GetCursorPos(out Point point);
+        [DllImport("user32.dll")] internal static extern bool SetCursorPos(int x, int y);
         [DllImport("user32.dll")] internal static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam);
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] internal static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
         [DllImport("user32.dll")] internal static extern IntPtr GetWindow(IntPtr hwnd, uint command);

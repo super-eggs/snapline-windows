@@ -54,19 +54,32 @@ namespace Snapline
             BitmapSource pixels = image;
             if (image.Format != PixelFormats.Bgra32 && image.Format != PixelFormats.Pbgra32)
                 pixels = new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
-            int stride = checked(image.PixelWidth * 4);
-            byte[] bytes = new byte[checked(stride * image.PixelHeight)];
-            pixels.CopyPixels(bytes, stride, 0);
+            int blockWidth = Math.Min(image.PixelWidth, 4096);
+            int blockHeight = Math.Min(image.PixelHeight, Math.Max(1, 16384 / blockWidth));
+            byte[] bytes = new byte[blockWidth * blockHeight * 4];
             bool hasRgb = false;
-            for (int i = 0; i < bytes.Length; i += 4)
+            for (int y = 0; y < image.PixelHeight; y += blockHeight)
+            for (int x = 0; x < image.PixelWidth; x += blockWidth)
             {
-                if (bytes[i + 3] != 0) return image; // Preserve valid partial transparency.
-                hasRgb |= bytes[i] != 0 || bytes[i + 1] != 0 || bytes[i + 2] != 0;
+                var rect = new System.Windows.Int32Rect(x, y, Math.Min(blockWidth, image.PixelWidth - x), Math.Min(blockHeight, image.PixelHeight - y));
+                pixels.CopyPixels(rect, bytes, rect.Width * 4, 0);
+                for (int i = 0; i < rect.Width * rect.Height * 4; i += 4)
+                {
+                    if (bytes[i + 3] != 0) return image; // Preserve valid partial transparency.
+                    hasRgb |= bytes[i] != 0 || bytes[i + 1] != 0 || bytes[i + 2] != 0;
+                }
             }
             if (!hasRgb) return image; // No hidden picture data to recover.
-            for (int i = 3; i < bytes.Length; i += 4) bytes[i] = 255;
             double dpiX = image.DpiX > 0 ? image.DpiX : 96, dpiY = image.DpiY > 0 ? image.DpiY : 96;
-            var restored = BitmapSource.Create(image.PixelWidth, image.PixelHeight, dpiX, dpiY, PixelFormats.Bgra32, null, bytes, stride);
+            var restored = new WriteableBitmap(image.PixelWidth, image.PixelHeight, dpiX, dpiY, PixelFormats.Bgra32, null);
+            for (int y = 0; y < image.PixelHeight; y += blockHeight)
+            for (int x = 0; x < image.PixelWidth; x += blockWidth)
+            {
+                var rect = new System.Windows.Int32Rect(x, y, Math.Min(blockWidth, image.PixelWidth - x), Math.Min(blockHeight, image.PixelHeight - y));
+                pixels.CopyPixels(rect, bytes, rect.Width * 4, 0);
+                for (int i = 3; i < rect.Width * rect.Height * 4; i += 4) bytes[i] = 255;
+                restored.WritePixels(rect, bytes, rect.Width * 4, 0);
+            }
             restored.Freeze(); return restored;
         }
     }

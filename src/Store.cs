@@ -5,7 +5,9 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace Snapline
 {
@@ -16,6 +18,9 @@ namespace Snapline
         [DataMember] public bool WatchEnabled = true;
         [DataMember] public string WatchFolder = Native.ScreenshotFolder();
         [DataMember] public WindowLayer Layer = WindowLayer.Top;
+        [DataMember] public string CaptureHotkey = "F1";
+        [DataMember] public string PinHotkey = "F3";
+        [DataMember] public string TogglePinsHotkey = "Shift+F3";
     }
     internal sealed class Shot
     {
@@ -31,6 +36,13 @@ namespace Snapline
         internal readonly string Inbox;
         internal readonly List<Shot> Items = new List<Shot>();
         internal Settings Settings;
+        private readonly Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
+        private ImageWorker worker;
+        private Task tail = Task.FromResult(true);
+        private bool stopping;
+        private sealed class Capture { internal byte[] Bytes; internal string Fingerprint; internal BitmapSource Thumbnail; }
+        private Capture pendingClipboard;
+        internal bool HasPendingClipboard { get { return pendingClipboard != null; } }
         internal event Action Changed;
         internal event Action LayerChanged;
         internal void SetLayer(WindowLayer layer)
@@ -39,7 +51,7 @@ namespace Snapline
             if (LayerChanged != null) LayerChanged();
         }
         internal event Action<string> Error;
-        internal Store(string root)
+        internal Store(string root, bool load = true)
         {
             Root = System.IO.Path.GetFullPath(root);
             Inbox = System.IO.Path.Combine(Root, "inbox");
@@ -54,28 +66,131 @@ namespace Snapline
                         Settings = (Settings)new DataContractJsonSerializer(typeof(Settings)).ReadObject(stream);
                     if (Settings == null) Settings = new Settings();
                     if (!Enum.IsDefined(typeof(WindowLayer), Settings.Layer)) Settings.Layer = WindowLayer.Top;
+                    if (string.IsNullOrWhiteSpace(Settings.CaptureHotkey)) Settings.CaptureHotkey = "F1";
+                    if (string.IsNullOrWhiteSpace(Settings.PinHotkey)) Settings.PinHotkey = "F3";
+                    if (string.IsNullOrWhiteSpace(Settings.TogglePinsHotkey)) Settings.TogglePinsHotkey = "Shift+F3";
                 }
                 catch (Exception) { Settings = new Settings(); }
             }
+            if (load) Items.AddRange(LoadShots());
+        }
+        private List<Shot> LoadShots()
+        {
+            var shots = new List<Shot>();
             foreach (string file in Directory.GetFiles(Inbox, "*.png").OrderByDescending(File.GetLastWriteTimeUtc).Take(Limit))
             {
                 try
                 {
-                    BitmapSource image = ReadImage(file);
-                    Items.Add(new Shot { Path = file, Image = Thumbnail(image), Fingerprint = Hash(Encode(image)), Created = File.GetLastWriteTime(file) });
+                    BitmapSource image = ReadImage(file, true);
+                    string fingerprint;
+                    using (var stream = File.OpenRead(file))
+                    using (var hash = SHA256.Create()) fingerprint = BitConverter.ToString(hash.ComputeHash(stream)).Replace("-", "");
+                    shots.Add(new Shot { Path = file, Image = image, Fingerprint = fingerprint, Created = File.GetLastWriteTime(file) });
                 }
                 catch (Exception) { }
             }
+            return shots;
         }
-        internal static BitmapSource ReadImage(string path)
+        private void EnsureWorker()
+        {
+            dispatcher.VerifyAccess();
+            if (stopping) throw new InvalidOperationException("图片收集正在退出。");
+            if (worker == null) worker = new ImageWorker();
+        }
+        private async Task<T> Enqueue<T>(Func<Task<T>> action)
+        {
+            EnsureWorker();
+            Task previous = tail;
+            var completed = new TaskCompletionSource<bool>();
+            tail = completed.Task;
+            await previous;
+            try { return await action(); }
+            finally { completed.SetResult(true); }
+        }
+        internal Task<bool> LoadAsync()
+        {
+            return Enqueue(async delegate
+            {
+                var shots = await worker.Run(LoadShots);
+                Items.AddRange(shots); Notify(); return true;
+            });
+        }
+        internal Task<bool> ImportAsync(string path) { return AddAsync(delegate { return ReadImage(path); }); }
+        internal Task<bool> AddAsync(Func<BitmapSource> read, bool snapshotImmediately = false)
+        {
+            // Snapshot a changing clipboard before waiting behind a batch of file imports.
+            Task<BitmapSource> snapshot = null;
+            if (snapshotImmediately)
+            {
+                EnsureWorker();
+                snapshot = worker.Run(delegate
+                {
+                    var image = read();
+                    if (image != null) image.Freeze();
+                    return image;
+                });
+            }
+            return Enqueue(async delegate
+            {
+                BitmapSource image = snapshot == null ? null : await snapshot;
+                Capture capture = await worker.Run(delegate { return Prepare(snapshot == null ? read() : image); });
+                if (capture == null || Items.Any(x => x.Fingerprint == capture.Fingerprint)) return false;
+                Shot shot;
+                try { shot = await PersistAsync(capture); }
+                catch (IOException) { if (snapshotImmediately) pendingClipboard = capture; throw; }
+                catch (UnauthorizedAccessException) { if (snapshotImmediately) pendingClipboard = capture; throw; }
+                Publish(shot); return true;
+            });
+        }
+        internal Task<bool> RetryClipboardAsync()
+        {
+            return Enqueue(async delegate
+            {
+                Capture capture = pendingClipboard;
+                if (Items.Any(x => x.Fingerprint == capture.Fingerprint)) { pendingClipboard = null; return false; }
+                Shot shot = await PersistAsync(capture);
+                pendingClipboard = null;
+                Publish(shot); return true;
+            });
+        }
+        internal Task WhenIdleAsync() { return tail; }
+        internal async Task StopAsync()
+        {
+            stopping = true;
+            await tail;
+            if (worker != null) { worker.Dispose(); worker = null; }
+        }
+        private async Task<Shot> PersistAsync(Capture capture)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try { return await worker.Run(delegate { return Persist(capture); }); }
+                catch (IOException) { if (attempt == 2) throw; }
+                catch (UnauthorizedAccessException) { if (attempt == 2) throw; }
+                // Keep this snapshot while retrying, even if the clipboard changes meanwhile.
+                await Task.Delay(700 * (attempt + 1));
+            }
+        }
+        internal static BitmapSource ReadImage(string path) { return ReadImage(path, false); }
+        private static BitmapSource ReadImage(string path, bool thumbnail)
         {
             var info = new FileInfo(path);
             if (info.Length > 80 * 1024 * 1024) throw new NotSupportedException("图片超过 80 MB，请选择较小的图片。");
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+                var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, thumbnail ? BitmapCacheOption.None : BitmapCacheOption.OnLoad);
                 var frame = decoder.Frames[0];
                 if ((long)frame.PixelWidth * frame.PixelHeight > 40000000) throw new NotSupportedException("图片像素过大。");
+                if (thumbnail)
+                {
+                    var image = new BitmapImage();
+                    image.BeginInit(); image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
+                    if (frame.PixelWidth >= frame.PixelHeight) image.DecodePixelWidth = Math.Min(420, frame.PixelWidth);
+                    else image.DecodePixelHeight = Math.Min(420, frame.PixelHeight);
+                    stream.Position = 0; image.StreamSource = stream; image.EndInit(); image.Freeze();
+                    return image;
+                }
                 frame.Freeze();
                 return frame;
             }
@@ -94,27 +209,45 @@ namespace Snapline
         private static BitmapSource Thumbnail(BitmapSource image)
         {
             double scale = Math.Min(1, 420.0 / Math.Max(image.PixelWidth, image.PixelHeight));
-            var thumb = new TransformedBitmap(image, new System.Windows.Media.ScaleTransform(scale, scale));
-            thumb.Freeze();
-            return thumb;
+            BitmapSource resized = new TransformedBitmap(image, new System.Windows.Media.ScaleTransform(scale, scale));
+            if (resized.Format != System.Windows.Media.PixelFormats.Bgra32)
+                resized = new FormatConvertedBitmap(resized, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+            int stride = resized.PixelWidth * 4;
+            byte[] pixels = new byte[stride * resized.PixelHeight];
+            resized.CopyPixels(pixels, stride, 0);
+            // Detach from the decoder/transform so 60 thumbnails cannot retain 60 full images.
+            var thumb = BitmapSource.Create(resized.PixelWidth, resized.PixelHeight, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, pixels, stride);
+            thumb.Freeze(); return thumb;
         }
         internal bool Import(string path) { return Add(ReadImage(path)); }
         internal bool Add(BitmapSource image)
         {
-            if (image == null) return false;
+            Capture capture = Prepare(image);
+            if (capture == null || Items.Any(x => x.Fingerprint == capture.Fingerprint)) return false;
+            Publish(Persist(capture)); return true;
+        }
+        private static Capture Prepare(BitmapSource image)
+        {
+            if (image == null) return null;
             if ((long)image.PixelWidth * image.PixelHeight > 40000000) throw new NotSupportedException("图片像素过大。");
             byte[] bytes = Encode(image);
-            string fingerprint = Hash(bytes);
-            if (Items.Any(x => x.Fingerprint == fingerprint)) return false;
+            return new Capture { Bytes = bytes, Fingerprint = Hash(bytes), Thumbnail = Thumbnail(image) };
+        }
+        private Shot Persist(Capture capture)
+        {
             string name = DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + "-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".png";
             string destination = System.IO.Path.Combine(Inbox, name);
-            File.WriteAllBytes(destination + ".tmp", bytes);
-            File.Move(destination + ".tmp", destination);
-            Items.Insert(0, new Shot { Path = destination, Image = Thumbnail(image), Fingerprint = fingerprint, Created = DateTime.Now });
+            string temp = destination + ".tmp";
+            try { File.WriteAllBytes(temp, capture.Bytes); File.Move(temp, destination); }
+            finally { if (File.Exists(temp)) File.Delete(temp); }
+            return new Shot { Path = destination, Image = capture.Thumbnail, Fingerprint = capture.Fingerprint, Created = DateTime.Now };
+        }
+        private void Publish(Shot shot)
+        {
+            Items.Insert(0, shot);
             // Keep a bounded shelf, but never silently delete old captures.
             while (Items.Count > Limit) Items.RemoveAt(Items.Count - 1);
             Notify();
-            return true;
         }
         internal void Remove(Shot shot)
         {

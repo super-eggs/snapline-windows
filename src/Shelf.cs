@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -17,8 +18,9 @@ namespace Snapline
         private readonly Store store;
         private readonly bool demo;
         private readonly Canvas cards = new Canvas { ClipToBounds = true, IsManipulationEnabled = true };
-        private readonly TextBlock status = new TextBlock { Visibility = Visibility.Collapsed, Foreground = Ui.LightMuted, Background = Ui.LightSurface, Padding = new Thickness(8), HorizontalAlignment = HorizontalAlignment.Left, FontSize = 12, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
-        private readonly Grid footer = new Grid();
+        private readonly TextBlock status = new TextBlock { Foreground = Ui.LightText, FontSize = 12, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        private readonly Border statusToast = new Border { Visibility = Visibility.Collapsed, Background = Ui.LightSurface, BorderBrush = Ui.LightEdge,
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 8, 14, 8), HorizontalAlignment = HorizontalAlignment.Center, Effect = Ui.Shadow(2, 10, .12) };
         private readonly StackPanel tools = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         internal readonly Button ScrollLeftButton, ScrollRightButton;
         internal readonly Button PinButton;
@@ -28,7 +30,17 @@ namespace Snapline
         private DateTime lastScrollFrame;
         private double scrollOffset, scrollTarget, contentWidth;
         private bool leftHover, rightHover;
-        private sealed class CardSlot { internal Shot Shot; internal Border View; internal double X, Width; }
+        private double maskWidth;
+        private bool maskLeft, maskRight;
+        private Border emptyMessage;
+        private sealed class CardSlot
+        {
+            internal Shot Shot;
+            internal Border View;
+            internal ImageSource Image;
+            internal readonly TranslateTransform Position = new TranslateTransform();
+            internal double X, Width;
+        }
         internal double ScrollOffset { get { return scrollOffset; } }
         internal double ScrollTarget { get { return scrollTarget; } }
         internal double MaxScroll { get { return Math.Max(0, contentWidth + 32 - Width); } }
@@ -51,6 +63,7 @@ namespace Snapline
             }
         }
         internal event Action Copied;
+        internal event Action<System.Windows.Media.Imaging.BitmapSource> PinRequested;
 
         internal Shelf(Store store, bool demo)
         {
@@ -60,25 +73,34 @@ namespace Snapline
             WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
             AllowsTransparency = true; Background = Brushes.Transparent;
             ShowInTaskbar = false; Topmost = store.Settings.Layer == WindowLayer.Top; ShowActivated = false;
-            FontFamily = new FontFamily("Microsoft YaHei UI");
+            FontFamily = Ui.Font; Ui.StyleToolTips(this, true);
             UseLayoutRounding = true; SnapsToDevicePixels = true;
             var panel = new Grid();
             panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            tools.Margin = new Thickness(0, 8, 16, 0);
-            tools.Children.Add(MakeButton("＋", "导入图片", ImportDialog));
-            PinButton = MakeButton("固定", "固定展开 / 自动收起", null);
-            PinButton.Click += delegate { pinned = !pinned; leaveSince = DateTime.MinValue; PinButton.Content = pinned ? "已固定" : "固定"; PinButton.BorderBrush = pinned ? Ui.Accent : Ui.LightEdge; };
+            tools.Children.Add(Ui.IconButton("import", "导入图片", ImportDialog, true));
+            tools.Children.Add(Ui.Divider(true));
+            PinButton = Ui.IconButton("pin", "固定展开 / 自动收起", null, true);
+            PinButton.Click += delegate
+            {
+                pinned = !pinned; leaveSince = DateTime.MinValue; Ui.Select(PinButton, pinned, true);
+                PinButton.ToolTip = pinned ? "已固定，点击恢复自动收起" : "固定展开 / 自动收起";
+            };
             tools.Children.Add(PinButton);
-            tools.Children.Add(MakeButton("收起", "收起（Esc）", delegate { Hide(); }));
-            panel.Children.Add(tools);
-            clothesline = new Grid { Height = 184, Margin = new Thickness(0, 10, 0, 8), VerticalAlignment = VerticalAlignment.Center };
+            tools.Children.Add(Ui.IconButton("collapse", "收起（Esc）", delegate { Hide(); }, true));
+            var toolSurface = new Border { Child = tools, Background = new LinearGradientBrush(Color.FromRgb(255, 254, 251), Color.FromRgb(245, 243, 237), 90),
+                BorderBrush = Ui.LightEdge, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = new Thickness(5),
+                HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 16, 0), Effect = Ui.Shadow(3, 12, .12) };
+            panel.Children.Add(toolSurface);
+            clothesline = new Grid { Height = 200, Margin = new Thickness(0, 10, 0, 8), VerticalAlignment = VerticalAlignment.Center };
             clothesline.Children.Add(new Clothesline { IsHitTestVisible = false });
             clothesline.Children.Add(cards);
-            ScrollLeftButton = MakeButton("‹", "向左滚动", delegate { ScrollBy(-Width * .65); });
-            ScrollRightButton = MakeButton("›", "向右滚动", delegate { ScrollBy(Width * .65); });
-            ScrollLeftButton.FontSize = ScrollRightButton.FontSize = 24;
+            ScrollLeftButton = Ui.IconButton("left", "向左滚动", delegate { ScrollBy(-Width * .65); }, true);
+            ScrollRightButton = Ui.IconButton("right", "向右滚动", delegate { ScrollBy(Width * .65); }, true);
+            ScrollLeftButton.Background = ScrollRightButton.Background = Ui.LightSurface;
+            ScrollLeftButton.BorderBrush = ScrollRightButton.BorderBrush = Ui.LightEdge;
+            ScrollLeftButton.Effect = Ui.Shadow(2, 10, .16); ScrollRightButton.Effect = Ui.Shadow(2, 10, .16);
             ScrollLeftButton.Width = ScrollRightButton.Width = 40;
             ScrollLeftButton.Height = ScrollRightButton.Height = 40;
             ScrollLeftButton.HorizontalAlignment = HorizontalAlignment.Left;
@@ -97,13 +119,8 @@ namespace Snapline
                 ScrollBy(-e.DeltaManipulation.Translation.X); e.Handled = true;
             };
             Grid.SetRow(clothesline, 1); panel.Children.Add(clothesline);
-            footer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            footer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            footer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            footer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            footer.Margin = new Thickness(16, 0, 16, 8);
-            status.Margin = new Thickness(0, 0, 16, 0); footer.Children.Add(status);
-            Grid.SetRow(footer, 2); panel.Children.Add(footer);
+            statusToast.Child = status; statusToast.Margin = new Thickness(16, 0, 16, 8); statusToast.VerticalAlignment = VerticalAlignment.Bottom;
+            Grid.SetRowSpan(statusToast, 3); Panel.SetZIndex(statusToast, 2); panel.Children.Add(statusToast);
             Content = new Border { Background = Brushes.Transparent, Child = panel };
             AllowDrop = true;
             DragOver += delegate(object sender, DragEventArgs e) { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
@@ -176,11 +193,12 @@ namespace Snapline
             ApplyLayout(screen.Bounds.Width / scale);
             int width = (int)(Width * scale), height = (int)(Height * scale);
             Native.SetWindowPos(handle, new IntPtr(store.Settings.Layer == WindowLayer.Top ? -1 : store.Settings.Layer == WindowLayer.Bottom ? 1 : -2), screen.Bounds.Left, screen.WorkingArea.Top, width, height, 0x0010);
-            RenderCards();
         }
         internal void ApplyLayout(double availableWidth)
         {
-            Width = Math.Max(280, availableWidth); Height = 246;
+            double width = Math.Max(280, availableWidth);
+            if (Width == width && Height == 280) return;
+            Width = width; Height = 280;
             RenderCards();
         }
         internal Size ImageSize(Shot shot)
@@ -202,6 +220,8 @@ namespace Snapline
             ScrollRightButton.Visibility = right && rightHover ? Visibility.Visible : Visibility.Collapsed;
             ScrollLeftButton.IsEnabled = scrollTarget > .5;
             ScrollRightButton.IsEnabled = scrollTarget < MaxScroll - .5;
+            if (cards.OpacityMask != null && maskWidth == Width && maskLeft == left && maskRight == right) return;
+            maskWidth = Width; maskLeft = left; maskRight = right;
             double fade = Math.Min(48 / Width, .2);
             var mask = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
             mask.GradientStops.Add(new GradientStop(left ? Colors.Transparent : Colors.White, 0));
@@ -221,7 +241,7 @@ namespace Snapline
         internal void Toggle() { if (IsVisible) Hide(); else Reveal(true); }
         internal void Status(string text)
         {
-            status.Text = text; status.Visibility = Visibility.Visible;
+            status.Text = text; statusToast.Visibility = Visibility.Visible;
             statusUntil = DateTime.UtcNow.AddSeconds(3);
         }
         internal void BeginReveal(bool manual, DateTime now)
@@ -242,7 +262,7 @@ namespace Snapline
         }
         private void Tick()
         {
-            if (status.Visibility == Visibility.Visible && DateTime.UtcNow >= statusUntil) status.Visibility = Visibility.Collapsed;
+            if (statusToast.Visibility == Visibility.Visible && DateTime.UtcNow >= statusUntil) statusToast.Visibility = Visibility.Collapsed;
             if (Busy || disposed) return;
             Native.Point cursor; if (!Native.GetCursorPos(out cursor)) return;
             var screen = Forms.Screen.FromPoint(new System.Drawing.Point(cursor.X, cursor.Y));
@@ -270,16 +290,24 @@ namespace Snapline
                 ? slots.FirstOrDefault(slot => slot.X + slot.Width > scrollOffset + 16 && store.Items.Contains(slot.Shot)) : null;
             double anchorX = anchor == null ? 0 : anchor.X - scrollOffset;
             double pending = scrollTarget - scrollOffset;
-            cards.Children.Clear();
+            var previous = slots.ToDictionary(slot => slot.Shot);
+            foreach (CardSlot slot in slots)
+                if (!store.Items.Contains(slot.Shot)) cards.Children.Remove(slot.View);
             slots.Clear();
             contentWidth = store.Items.Sum(shot => ImageSize(shot).Width + 8 + 24);
             double left = MaxScroll > 0 ? 16 : (Width - contentWidth) / 2;
             foreach (Shot shot in store.Items)
             {
-                var card = (Border)Card(shot);
                 double cardWidth = ImageSize(shot).Width + 8;
-                slots.Add(new CardSlot { Shot = shot, View = card, X = left + 12, Width = cardWidth });
-                cards.Children.Add(card);
+                CardSlot slot;
+                if (!previous.TryGetValue(shot, out slot) || slot.Width != cardWidth || !ReferenceEquals(slot.Image, shot.Image))
+                {
+                    if (slot != null) cards.Children.Remove(slot.View);
+                    slot = new CardSlot { Shot = shot, View = (Border)Card(shot), Image = shot.Image, Width = cardWidth };
+                    slot.View.RenderTransform = slot.Position;
+                    cards.Children.Add(slot.View);
+                }
+                slot.X = left + 12; slots.Add(slot);
                 left += cardWidth + 24;
             }
             if (anchor != null)
@@ -289,11 +317,24 @@ namespace Snapline
             }
             scrollOffset = Math.Max(0, Math.Min(MaxScroll, scrollOffset));
             scrollTarget = Math.Max(0, Math.Min(MaxScroll, scrollTarget));
-            if (store.Items.Count == 0)
+            if (store.Items.Count != 0 && emptyMessage != null)
             {
-                var empty = MakeButton("导入图片", "也可以使用 Win+Shift+S 截图", ImportDialog);
-                Canvas.SetLeft(empty, (Width - 90) / 2); Canvas.SetTop(empty, 55); cards.Children.Add(empty);
+                cards.Children.Remove(emptyMessage); emptyMessage = null;
             }
+            if (store.Items.Count == 0 && emptyMessage == null)
+            {
+                var hint = new TextBlock { Text = "让截图，随手可取", Foreground = Ui.LightText, FontSize = 14, FontWeight = FontWeights.Medium,
+                    HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 5) };
+                var shortcut = new TextBlock { Text = "Win + Shift + S  截图后自动收集", Foreground = Ui.LightMuted, FontSize = 11,
+                    HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
+                var empty = MakeButton("导入图片", "也可以使用 Win+Shift+S 截图", ImportDialog);
+                empty.HorizontalAlignment = HorizontalAlignment.Center; empty.Margin = new Thickness(0);
+                var message = new StackPanel(); message.Children.Add(hint); message.Children.Add(shortcut); message.Children.Add(empty);
+                emptyMessage = new Border { Width = 240, Background = Ui.LightSurface, BorderBrush = Ui.LightEdge, BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(12), Padding = new Thickness(18, 16, 18, 16), Child = message, Effect = Ui.Shadow(4, 16, .14) };
+                Canvas.SetTop(emptyMessage, 44); cards.Children.Add(emptyMessage);
+            }
+            if (emptyMessage != null) Canvas.SetLeft(emptyMessage, (Width - emptyMessage.Width) / 2);
             PositionCards();
         }
         private void PositionCards()
@@ -301,24 +342,28 @@ namespace Snapline
             foreach (CardSlot slot in slots)
             {
                 double x = slot.X - scrollOffset;
-                Canvas.SetLeft(slot.View, x);
-                Canvas.SetTop(slot.View, Clothesline.DropAt((x + slot.Width / 2) / Width, Width));
+                // Move only the rendered cards; scrolling must not arrange the whole row each frame.
+                bool visible = x + slot.Width >= -16 && x <= Width + 16;
+                slot.View.Visibility = visible ? Visibility.Visible : Visibility.Hidden;
+                if (!visible) continue;
+                slot.Position.X = x;
+                slot.Position.Y = Clothesline.DropAt((x + slot.Width / 2) / Width, Width);
             }
             UpdateEdges();
         }
         private UIElement Card(Shot shot)
         {
             var body = new StackPanel();
-            var clip = new Border { Width = 14, Height = 24, Background = Ui.Accent, CornerRadius = new CornerRadius(3), BorderBrush = Ui.Brush(180, 147, 100), BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 0, -5) };
-            clip.Child = new Border { Width = 2, Height = 13, Background = Ui.Brush(177, 143, 96), CornerRadius = new CornerRadius(1) };
+            var clip = new Clothespin { Margin = new Thickness(0, 0, 0, -4) };
             body.Children.Add(clip); Panel.SetZIndex(clip, 1);
             Size imageSize = ImageSize(shot);
             var image = new Image { Source = shot.Image, Width = imageSize.Width, Height = imageSize.Height, Stretch = Stretch.Uniform, Cursor = Cursors.Hand, ToolTip = "单击复制 · 双击预览 · 右键更多操作" };
-            var frame = new Border { Background = Brushes.Transparent, Padding = new Thickness(3), BorderBrush = Ui.LightSurface, BorderThickness = new Thickness(1), Child = image, CornerRadius = new CornerRadius(3) };
+            var frame = new Border { Background = Ui.LightSurface, Padding = new Thickness(3), BorderBrush = Ui.LightSurface, BorderThickness = new Thickness(1),
+                Child = image, CornerRadius = new CornerRadius(3), Effect = Ui.Shadow(3, 10, .21) };
             body.Children.Add(frame);
             var outer = new Border { Width = imageSize.Width + 8, VerticalAlignment = VerticalAlignment.Top, Child = body };
-            outer.MouseEnter += delegate { frame.BorderBrush = Ui.Accent; };
-            outer.MouseLeave += delegate { frame.BorderBrush = Ui.LightSurface; };
+            outer.MouseEnter += delegate { frame.BorderBrush = Ui.Accent; frame.Effect = Ui.Shadow(4, 12, .26); };
+            outer.MouseLeave += delegate { frame.BorderBrush = Ui.LightSurface; frame.Effect = Ui.Shadow(3, 10, .21); };
             Point start = new Point(); bool dragging = false;
             var click = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Forms.SystemInformation.DoubleClickTime) };
             click.Tick += delegate { click.Stop(); Copy(shot); };
@@ -336,10 +381,11 @@ namespace Snapline
                 finally { Busy = false; leaveSince = DateTime.MinValue; }
             };
             image.MouseLeftButtonUp += delegate(object sender, MouseButtonEventArgs e) { if (!dragging && e.ClickCount == 1) click.Start(); };
-            var context = new ContextMenu();
+            var context = Ui.Menu(true);
             AddMenu(context, "复制图片", delegate { Copy(shot); });
             AddMenu(context, "预览", delegate { OpenPreview(shot, false); });
             AddMenu(context, "标注", delegate { OpenPreview(shot, true); });
+            AddMenu(context, "贴到屏幕", delegate { if (PinRequested != null) PinRequested(Store.ReadImage(shot.Path)); });
             AddMenu(context, "另存为…", delegate { SaveAs(shot); });
             AddMenu(context, "修复空白图片", delegate
             {
@@ -369,7 +415,7 @@ namespace Snapline
         private void OpenPreview(Shot shot, bool edit)
         {
             Busy = true;
-            try { new Preview(store, shot, edit) { Owner = this }.ShowDialog(); }
+            try { new Preview(store, shot, edit, delegate(System.Windows.Media.Imaging.BitmapSource image) { if (PinRequested != null) PinRequested(image); }) { Owner = this }.ShowDialog(); }
             finally { Busy = false; leaveSince = DateTime.MinValue; }
         }
         private void SaveAs(Shot shot)
@@ -382,22 +428,25 @@ namespace Snapline
             }
             finally { Busy = false; }
         }
-        internal void ImportDialog()
+        internal async void ImportDialog()
         {
             Busy = true;
             try
             {
                 var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "图片|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff", Multiselect = true };
-                if (dialog.ShowDialog() == true) { ImportPaths(dialog.FileNames); Reveal(true); }
+                if (dialog.ShowDialog() == true) { await ImportPathsAsync(dialog.FileNames); Reveal(true); }
             }
             finally { Busy = false; }
         }
-        internal void ImportPaths(string[] paths)
+        internal async void ImportPaths(string[] paths) { await ImportPathsAsync(paths); }
+        internal async Task ImportPathsAsync(string[] paths)
         {
             int added = 0, failed = 0;
-            foreach (string path in paths)
+            // Queue paths up front so exit can drain the whole accepted batch, without decoding it up front.
+            var imports = paths.Where(FolderCollector.IsImage).Select(path => store.ImportAsync(path)).ToArray();
+            foreach (Task<bool> import in imports)
             {
-                try { if (FolderCollector.IsImage(path) && store.Import(path)) added++; }
+                try { if (await import) added++; }
                 catch (Exception) { failed++; }
             }
             Status(string.Format("已收集 {0} 张{1}，重复图片自动略过", added, failed == 0 ? "" : "，" + failed + " 张无法读取"));
