@@ -64,7 +64,7 @@
 
 ![画笔标注](docs/images/03-annotation.png)
 
-图文产品介绍位于 [docs/index.html](docs/index.html)，下载后可离线打开。本仓库未启用 GitHub Pages。
+产品宣传页位于 [docs/index.html](docs/index.html)，包含功能切换演示、快捷键、常见问题与下载入口；页面资源均在 `docs/` 中，可离线打开。页面区分当前开发版功能和已发布安装包。本仓库未启用 GitHub Pages。
 
 ## 构建与验证
 
