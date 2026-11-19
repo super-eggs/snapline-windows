@@ -235,14 +235,14 @@
 
 .demo-capture {
   position: absolute;
-  inset: 0 0 var(--taskbar-height);
+  inset: 0;
   z-index: 8;
   overflow: hidden;
   touch-action: none;
   cursor: crosshair;
-  background: #03050766;
 }
-.demo-capture:has(.demo-selection:not([hidden])) { background: transparent; }
+.demo-capture-frame { display: block; width: 100%; height: 100%; pointer-events: none; }
+.demo-capture:not(:has(.demo-selection:not([hidden]))) .demo-capture-frame { filter: brightness(.52); }
 .demo-selection { position: absolute; border: 1px solid var(--native-accent); box-shadow: 0 0 0 2000px #03050780; pointer-events: none; }
 .demo-crop-art { display: block; width: 100%; height: 100%; }
 .demo-capture[data-mode="mark"] [data-edge],
@@ -297,7 +297,6 @@
 }
 .demo-capture-actions[data-dragging] { visibility: hidden; }
 .demo-capture-actions button, .demo-editor button, .demo-pin-tools button { width: 32px; height: 32px; padding: 0; }
-.demo-capture-actions [data-action="whole"] { width: auto; padding-inline: 10px; font-size: 12px; }
 .demo-capture-options { display: contents; }
 .demo-capture-divider { align-self: center; width: 1px; height: 16px; margin-inline: 2px; background: var(--native-edge); }
 .demo-capture-actions button[aria-pressed="true"], .demo-capture-actions button[aria-expanded="true"] {

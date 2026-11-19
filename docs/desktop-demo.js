@@ -4,7 +4,7 @@
   const english = document.documentElement.lang === 'en';
   const messages = english ? {
     selected: name => `Selected “${name}.” Double-click the image or choose Preview selected image.`,
-    startCapture: 'Drag over the sample note, or select the entire image from the toolbar.',
+    startCapture: 'Drag anywhere on the demo desktop, or choose Select desktop.',
     newCapture: 'New screenshot',
     collected: 'Added to the shelf. Double-click the thumbnail or choose Preview selected image.',
     openEditor: 'Click the pen icon at the top of the preview to show the annotation tools.',
@@ -16,18 +16,18 @@
     marked: 'Annotation added. Undo it or pin the image to the desktop.',
     tour: 'Watch demo',
     stopTour: 'Stop demo',
-    tourCrop: 'Select part of the sample note.',
+    tourCrop: 'Select part of the desktop.',
     tourMark: 'Use an arrow to point out a detail.',
-    reset: 'Select Capture to crop the sample note, or open the annotation tools in the preview.',
+    reset: 'Select Capture to crop any area of the demo desktop, or open the annotation tools in the preview.',
     cancelCapture: 'Capture canceled.',
     closePreview: 'Preview closed. Annotations are kept in the demo copy.',
     closePin: 'Pinned image closed.',
     shelfHidden: 'Screenshot shelf hidden. Click the Snapline icon in the system tray to reopen it.',
     shelfShown: 'Screenshot shelf shown.',
-    whole: 'Entire sample image selected. Click the check mark to finish.',
+    whole: 'Entire demo desktop selected. Click the check mark to finish.',
     annotate: 'Choose Pen or Arrow, then drag on the image to annotate.',
     saved: 'Saved to the demo copy.',
-    captureReady: 'The entire sample is selected. Reselect an area or use the toolbar to annotate, pick a color, or save.',
+    captureReady: 'The entire desktop is selected. Reselect an area or use the toolbar to annotate, pick a color, or save.',
     savedCapture: 'PNG download started. You can keep editing this capture.',
     design: 'Design review',
     weekend: 'Weekend ideas',
@@ -35,7 +35,7 @@
     unavailable: 'The sample images could not load. Refresh the page to try again.',
   } : {
     selected: name => `已选中「${name}」。双击图片或点击「预览选中图片」。`,
-    startCapture: '在示例笔记上拖动框选，也可用工具栏选择整张。',
+    startCapture: '在示例桌面任意位置拖动框选，也可以点「全选桌面」。',
     newCapture: '刚刚截取的图片',
     collected: '截图已挂到晾衣绳。双击缩略图或点击「预览选中图片」。',
     openEditor: '点击预览顶部的画笔图标展开标注工具。',
@@ -47,18 +47,18 @@
     marked: '已添加标注。可以撤销，或把结果贴到桌面。',
     tour: '观看演示',
     stopTour: '停止演示',
-    tourCrop: '框选示例笔记中需要的区域。',
+    tourCrop: '框选示例桌面中需要的区域。',
     tourMark: '用箭头标出重点。',
-    reset: '点击「截图」框选示例笔记，或打开预览里的标注工具。',
+    reset: '点击「截图」框选示例桌面的任意区域，或打开预览里的标注工具。',
     cancelCapture: '已取消截图。',
     closePreview: '预览已关闭，标注已保留在演示图片上。',
     closePin: '贴图已关闭。',
     shelfHidden: '晾衣绳已收起。点击右下角的 Snapline 图标可再次展开。',
     shelfShown: '晾衣绳已展开。',
-    whole: '已选择整张示例图片。点击工具栏上的对勾完成截图。',
+    whole: '已选中整个示例桌面。点击工具栏上的对勾完成截图。',
     annotate: '选择画笔或箭头后，在图片上拖动标注。',
     saved: '已保存到演示副本。',
-    captureReady: '已选中整张示例图。可重新框选，也可直接用工具栏标注、取色或保存。',
+    captureReady: '已选中整个示例桌面。可重新框选，也可直接用工具栏标注、取色或保存。',
     savedCapture: '已开始下载 PNG，可以继续编辑这次截图。',
     design: '页面设计评审',
     weekend: '周末灵感',
@@ -73,8 +73,10 @@
   const note = find('.demo-source');
   const source = find('.demo-source-image img');
   const capture = find('.demo-capture');
+  const captureFrame = find('.demo-capture-frame');
   const selection = find('.demo-selection');
   const captureActions = find('.demo-capture-actions');
+  const sceneLayers = [...desktop.children].filter(layer => layer !== capture && layer !== captureActions);
   const shelf = find('.demo-shelf');
   const shots = find('.demo-shots');
   const rope = find('.demo-rope');
@@ -91,8 +93,9 @@
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const bounds = (value, min, max) => Math.max(min, Math.min(value, max));
   const say = message => { status.textContent = message; };
-  const captureTools = createCaptureTools(capture, captureActions, source, say, english);
-  const whole = () => ({ x: 0, y: 0, w: source.naturalWidth, h: source.naturalHeight });
+  const captureTools = createCaptureTools(capture, captureActions, captureFrame, say, english);
+  const whole = () => ({ x: 0, y: 0, w: captureFrame.width, h: captureFrame.height });
+  let snapshotAssets;
   let samples, images, selected, editing, crop, pinX, pinY, gesture;
   let zoom = 1;
   let tool = 'pen';
@@ -196,20 +199,20 @@
     const valid = rect && rect.w >= 8 && rect.h >= 8;
     selection.hidden = !valid;
     button('collect').disabled = button('pin-crop').disabled = button('save-crop').disabled = !valid;
-    button('save-crop').hidden = button('pin-crop').hidden = button('collect').hidden = !valid;
-    button('whole').hidden = Boolean(valid);
-    button('reselect').hidden = !valid;
+    captureActions.hidden = !valid;
     captureTools.setRegion(valid ? rect : null);
-    if (capture.hidden) return;
+    if (!valid) return;
     const frame = capture.getBoundingClientRect();
-    const img = source.getBoundingClientRect();
-    const area = rect || whole();
-    const left = img.left - frame.left + img.width * area.x / source.naturalWidth;
-    const top = img.top - frame.top + img.height * area.y / source.naturalHeight;
-    const width = img.width * area.w / source.naturalWidth;
-    const height = img.height * area.h / source.naturalHeight;
+    const scaleX = frame.width / captureFrame.width;
+    const scaleY = frame.height / captureFrame.height;
+    const left = rect.x * scaleX;
+    const top = rect.y * scaleY;
+    const width = rect.w * scaleX;
+    const height = rect.h * scaleY;
     Object.assign(selection.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
-    find('.demo-crop-size').textContent = valid ? `${area.w} × ${area.h}` : '';
+    const dimensions = find('.demo-crop-size');
+    dimensions.textContent = `${rect.w} × ${rect.h}`;
+    dimensions.style.top = top < 27 ? '2px' : '';
     const toolsWidth = captureActions.offsetWidth;
     const toolsHeight = captureActions.offsetHeight;
     captureActions.style.left = `${bounds(left + width - toolsWidth, 6, frame.width - toolsWidth - 6)}px`;
@@ -219,18 +222,25 @@
     captureActions.style.top = `${bounds(toolbarTop, 6, frame.height - toolsHeight - 6)}px`;
   }
 
+  function setCaptureView(active) {
+    capture.hidden = !active;
+    for (const layer of sceneLayers) layer.inert = active;
+    button('capture').hidden = active;
+    button('whole').hidden = !active;
+    button('tour').hidden = active && !tourSteps;
+    button('cancel-top').hidden = !active || Boolean(tourSteps);
+  }
+
   function endCapture() {
     if (gesture?.kind === 'crop') gesture = null;
-    capture.hidden = captureActions.hidden = true;
+    setCaptureView(false);
     captureActions.removeAttribute('data-dragging');
     drawCrop(null);
   }
 
   function startCapture() {
-    closeEditor();
-    pin.hidden = true;
-    showNote(true);
-    capture.hidden = captureActions.hidden = false;
+    paintDesktopSnapshot(desktop, captureFrame, snapshotAssets);
+    setCaptureView(true);
     drawCrop(null);
     say(messages.startCapture);
   }
@@ -428,7 +438,7 @@
     });
   }
 
-  const capturePoint = event => point(event, source, source.naturalWidth, source.naturalHeight);
+  const capturePoint = event => point(event, capture, captureFrame.width, captureFrame.height);
   track(capture, 'crop', event => {
     if (event.target.closest('.demo-capture-text, .demo-color-reading')) return null;
     const start = capturePoint(event);
@@ -455,8 +465,8 @@
       return;
     }
     if (moving) {
-      const x = bounds(before.x + end.x - start.x, 0, source.naturalWidth - before.w);
-      const y = bounds(before.y + end.y - start.y, 0, source.naturalHeight - before.h);
+      const x = bounds(before.x + end.x - start.x, 0, captureFrame.width - before.w);
+      const y = bounds(before.y + end.y - start.y, 0, captureFrame.height - before.h);
       drawCrop({ ...before, x, y });
       return;
     }
@@ -537,6 +547,7 @@
     highlighted = null;
     button('tour').setAttribute('aria-pressed', 'false');
     button('tour').textContent = messages.tour;
+    if (!capture.hidden) setCaptureView(true);
   }
 
   function playTour() {
@@ -546,7 +557,8 @@
     tourSteps = [
       [capture, startCapture],
       [button('collect'), () => {
-        drawCrop({ x: 32, y: 26, w: 552, h: 330 });
+        const { w, h } = whole();
+        drawCrop({ x: Math.round(w * .28), y: Math.round(h * .24), w: Math.round(w * .58), h: Math.round(h * .62) });
         say(messages.tourCrop);
       }],
       [button('open'), collect],
@@ -675,6 +687,7 @@
       cancelCapture();
       button('capture').focus({ preventScroll: true });
     },
+    'cancel-top': () => actions.cancel(),
     collect: () => {
       collect();
       button('open').focus({ preventScroll: true });
@@ -726,6 +739,7 @@
     }
     if (event.key === 'Escape') {
       if (!capture.hidden) actions.cancel();
+      else if (!pin.hidden && event.target.closest('.demo-pin')) closePin();
       else if (!editor.hidden) closePreview();
       else if (!pin.hidden) closePin();
       else return;
@@ -739,7 +753,7 @@
       saveCrop();
     } else if (event.key.toLowerCase() === 't' && event.ctrlKey && !event.altKey && !capture.hidden && !button('pin-crop').disabled) {
       pinCrop();
-    } else if (event.key.toLowerCase() === 't' && event.ctrlKey && event.altKey) {
+    } else if (event.key.toLowerCase() === 't' && event.ctrlKey && event.altKey && capture.hidden) {
       actions.shelf();
     } else if (event.key.toLowerCase() === 'z' && event.ctrlKey && editing) {
       undo();
@@ -765,11 +779,15 @@
   }).observe(desktop);
 
   async function init() {
-    const [, design, weekend] = await Promise.all([
+    const [, design, weekend, wallpaper, clothespin, icons] = await Promise.all([
       source.decode(),
       loadImage(english ? 'en-design-review.png' : '02-image-preview.png'),
       loadImage(english ? 'en-capture-annotation.png' : '05-capture-annotation.png'),
+      loadImage('desktop-wallpaper.webp'),
+      loadImage('snapline-clothespin.png'),
+      loadImage('snapline-toolbar.png'),
     ]);
+    snapshotAssets = { wallpaper, clothespin, icons };
     samples = [
       { name: messages.design, canvas: english ? canvasCopy(design) : canvasCopy(design, 100, 103, 900, 560) },
       { name: messages.weekend, canvas: canvasCopy(weekend) },

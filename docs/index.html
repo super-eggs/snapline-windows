@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="desktop-demo.css">
   <script src="script.js" defer></script>
   <script src="capture-tools.js" defer></script>
+  <script src="desktop-snapshot.js" defer></script>
   <script src="desktop-demo.js" defer></script>
 </head>
 <body>
@@ -47,10 +48,12 @@
     <section class="container desktop-experience" id="try" aria-label="Snapline 网页演示">
       <div id="desktop-demo" class="desktop-demo" role="region" aria-label="可操作的示例桌面" hidden>
         <div class="desktop-toolbar">
-          <p class="demo-status" role="status">点击「截图」，框选示例笔记里的内容。</p>
+          <p class="demo-status" role="status">点击「截图」，框选示例桌面上的任意区域。</p>
           <div class="desktop-actions">
             <button type="button" data-action="capture" class="demo-start">截图 <kbd>F1</kbd></button>
             <button type="button" data-action="tour" aria-pressed="false">观看演示</button>
+            <button type="button" data-action="whole" class="demo-start" title="选择整个示例桌面（Ctrl+A）" hidden>全选桌面</button>
+            <button type="button" data-action="cancel-top" title="取消截图（Esc）" hidden>取消截图</button>
             <button type="button" data-action="reset">重置</button>
           </div>
         </div>
@@ -74,7 +77,8 @@
             </div>
             <div class="demo-source-image"><img src="images/06-pinned-image.png" width="640" height="400" alt="示例笔记：一个好点子" draggable="false"></div>
           </div>
-          <div class="demo-capture" tabindex="-1" aria-label="拖动框选示例笔记里的内容" hidden>
+          <div class="demo-capture" tabindex="-1" aria-label="拖动框选示例桌面上的任意区域" hidden>
+            <canvas class="demo-capture-frame" aria-hidden="true"></canvas>
             <div class="demo-selection" hidden>
               <canvas class="demo-crop-art" aria-hidden="true"></canvas>
               <span class="demo-crop-size"></span>
@@ -84,8 +88,7 @@
             </div>
           </div>
           <div class="demo-capture-actions" aria-label="截图工具栏" hidden>
-            <button type="button" data-action="whole" title="选择整张示例图（Ctrl+A）">选择整张</button>
-            <button type="button" data-action="reselect" aria-label="重新框选" title="重新框选" hidden><span class="demo-icon icon-reselect"></span></button>
+            <button type="button" data-action="reselect" aria-label="重新框选" title="重新框选"><span class="demo-icon icon-reselect"></span></button>
             <button type="button" data-action="save-crop" aria-label="另存 PNG" title="另存为 PNG（Ctrl+S）" disabled><span class="demo-icon icon-save"></span></button>
             <button type="button" data-action="pin-crop" aria-label="贴到屏幕" title="贴到屏幕（Ctrl+T）" disabled><span class="demo-icon icon-pin"></span></button>
             <button type="button" data-action="cancel" aria-label="取消截图" title="取消（Esc）"><span class="demo-icon icon-close"></span></button>

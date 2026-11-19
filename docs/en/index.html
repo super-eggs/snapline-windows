@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="../desktop-demo.css">
   <script src="../script.js" defer></script>
   <script src="../capture-tools.js" defer></script>
+  <script src="../desktop-snapshot.js" defer></script>
   <script src="../desktop-demo.js" defer></script>
 </head>
 <body>
@@ -47,10 +48,12 @@
     <section class="container desktop-experience" id="try" aria-label="Snapline web demo">
       <div id="desktop-demo" class="desktop-demo" role="region" aria-label="Interactive demo desktop" hidden>
         <div class="desktop-toolbar">
-          <p class="demo-status" role="status">Select Capture and drag over part of the sample note.</p>
+          <p class="demo-status" role="status">Select Capture and drag anywhere on the demo desktop.</p>
           <div class="desktop-actions">
             <button type="button" data-action="capture" class="demo-start">Capture <kbd>F1</kbd></button>
             <button type="button" data-action="tour" aria-pressed="false">Watch demo</button>
+            <button type="button" data-action="whole" class="demo-start" title="Select the entire demo desktop (Ctrl+A)" hidden>Select desktop</button>
+            <button type="button" data-action="cancel-top" title="Cancel capture (Esc)" hidden>Cancel capture</button>
             <button type="button" data-action="reset">Reset</button>
           </div>
         </div>
@@ -74,7 +77,8 @@
             </div>
             <div class="demo-source-image"><img src="../images/en-pinned-image.png" width="640" height="400" alt="Sample note titled A good idea" draggable="false"></div>
           </div>
-          <div class="demo-capture" tabindex="-1" aria-label="Drag to select part of the sample note" hidden>
+          <div class="demo-capture" tabindex="-1" aria-label="Drag to select any area of the demo desktop" hidden>
+            <canvas class="demo-capture-frame" aria-hidden="true"></canvas>
             <div class="demo-selection" hidden>
               <canvas class="demo-crop-art" aria-hidden="true"></canvas>
               <span class="demo-crop-size"></span>
@@ -84,8 +88,7 @@
             </div>
           </div>
           <div class="demo-capture-actions" aria-label="Capture toolbar" hidden>
-            <button type="button" data-action="whole" title="Select the entire sample image (Ctrl+A)">Select all</button>
-            <button type="button" data-action="reselect" aria-label="Reselect area" title="Reselect area" hidden><span class="demo-icon icon-reselect"></span></button>
+            <button type="button" data-action="reselect" aria-label="Reselect area" title="Reselect area"><span class="demo-icon icon-reselect"></span></button>
             <button type="button" data-action="save-crop" aria-label="Save PNG" title="Save as PNG (Ctrl+S)" disabled><span class="demo-icon icon-save"></span></button>
             <button type="button" data-action="pin-crop" aria-label="Pin to desktop" title="Pin to desktop (Ctrl+T)" disabled><span class="demo-icon icon-pin"></span></button>
             <button type="button" data-action="cancel" aria-label="Cancel capture" title="Cancel (Esc)"><span class="demo-icon icon-close"></span></button>
