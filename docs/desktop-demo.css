@@ -155,7 +155,7 @@
 .demo-shelf-tools button { width: 34px; height: 30px; }
 .demo-shelf-tools button:hover { background: #ede2cd; }
 
-.demo-document, .demo-source {
+.demo-paper {
   position: absolute;
   overflow: hidden;
   border: 1px solid #f9fbffbd;
@@ -166,6 +166,7 @@
 .demo-document { top: 30%; left: 13%; width: min(45%, 458px); }
 .demo-document canvas { display: block; width: 100%; height: auto; }
 .demo-source { top: 35%; left: 45%; width: min(43%, 480px); z-index: 1; }
+.demo-paper[data-front] { z-index: 6; }
 .demo-source-image img { width: 100%; user-select: none; }
 .demo-window-title {
   display: flex;
@@ -180,22 +181,28 @@
 }
 .demo-window-title button { width: 34px; height: 28px; margin-left: auto; }
 .demo-window-title button:hover { background: #c42b1c; color: white; }
+.demo-paper .demo-window-title { cursor: grab; touch-action: none; user-select: none; }
+.demo-paper .demo-window-title:active { cursor: grabbing; }
 .demo-file-icon {
+  --file-light: #edf6ff;
+  --file-dark: #7ab6f5;
+  --file-mark: #387cca;
   display: inline-block;
   position: relative;
   width: 16px;
   height: 19px;
   border-radius: 3px;
-  background: linear-gradient(140deg, #edf6ff, #7ab6f5);
+  background: linear-gradient(140deg, var(--file-light), var(--file-dark));
   box-shadow: 0 0 0 1px #326aa347 inset;
 }
 .demo-file-icon::after {
   content: "";
   position: absolute;
   inset: 7px 3px 3px;
-  background: #387cca;
+  background: var(--file-mark);
   clip-path: polygon(0 100%, 37% 28%, 61% 58%, 74% 18%, 100% 100%);
 }
+.demo-weekend-icon { --file-light: #effbf6; --file-dark: #87cdbc; --file-mark: #298570; }
 .demo-taskbar {
   position: absolute;
   z-index: 7;
@@ -466,7 +473,9 @@
   .demo-editor-info { font-size: 10px; margin-left: 2px; }
   .demo-zoom { width: 43px; }
   .demo-pin-tools { opacity: 1; pointer-events: auto; }
-  .demo-tray { right: 8px; gap: 4px; }
+  .demo-taskbar { grid-template-columns: 1fr auto; padding-inline: 8px; }
+  .demo-taskbar-apps { gap: 4px; }
+  .demo-tray { position: static; gap: 4px; }
 }
 @media (pointer: coarse) {
   .demo-pin-tools { opacity: 1; pointer-events: auto; }

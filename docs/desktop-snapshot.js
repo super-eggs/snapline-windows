@@ -89,8 +89,12 @@ function paintDesktopSnapshot(desktop, canvas, { wallpaper, clothespin, icons })
 
   function fileIcon(element) {
     const rect = box(element);
-    fill(rect, '#9dc8f5', 3);
-    context.fillStyle = '#397cc6';
+    const style = getComputedStyle(element);
+    const background = context.createLinearGradient(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h);
+    background.addColorStop(0, style.getPropertyValue('--file-light'));
+    background.addColorStop(1, style.getPropertyValue('--file-dark'));
+    fill(rect, background, 3);
+    context.fillStyle = style.getPropertyValue('--file-mark');
     context.beginPath();
     context.moveTo(rect.x + 3, rect.y + rect.h - 4);
     context.lineTo(rect.x + 7, rect.y + 8);
@@ -145,8 +149,7 @@ function paintDesktopSnapshot(desktop, canvas, { wallpaper, clothespin, icons })
     });
   }
 
-  function paper(selector) {
-    const window = find(selector);
+  function paintPaper(window) {
     surface(window, null, () => {
       paintTitle(window);
       const media = window.querySelector('img, canvas');
@@ -167,8 +170,11 @@ function paintDesktopSnapshot(desktop, canvas, { wallpaper, clothespin, icons })
   }
 
   image(wallpaper, full, 'cover');
-  paper('.demo-document');
-  paper('.demo-source');
+  const papers = desktop.querySelectorAll('.demo-paper');
+  const frontPaper = find('.demo-paper[data-front]');
+  for (const window of papers) {
+    if (window !== frontPaper) paintPaper(window);
+  }
 
   const shelf = find('.demo-shelf');
   if (!shelf.hidden) {
@@ -212,6 +218,8 @@ function paintDesktopSnapshot(desktop, canvas, { wallpaper, clothespin, icons })
     text(find('.demo-editor-info'));
     slider(find('.demo-zoom'));
   }, true);
+
+  if (frontPaper) paintPaper(frontPaper);
 
   const pin = find('.demo-pin');
   if (!pin.hidden) {

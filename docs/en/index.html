@@ -66,11 +66,14 @@
               <button type="button" data-action="collapse" aria-label="Hide screenshot shelf" title="Hide screenshot shelf"><span class="demo-icon icon-collapse"></span></button>
             </div>
           </div>
-          <div class="demo-document" aria-hidden="true">
-            <div class="demo-window-title"><span class="demo-file-icon"></span>Weekend ideas.png</div>
-            <canvas></canvas>
+          <div id="demo-weekend" class="demo-paper demo-document" role="group" aria-label="Weekend ideas.png" hidden>
+            <div class="demo-window-title">
+              <span class="demo-file-icon demo-weekend-icon" aria-hidden="true"></span>Weekend ideas.png
+              <button type="button" data-action="close-weekend" aria-label="Close Weekend ideas" title="Close Weekend ideas"><span class="demo-icon icon-close"></span></button>
+            </div>
+            <canvas role="img" aria-label="Weekend ideas sample with an arrow annotation"></canvas>
           </div>
-          <div class="demo-source">
+          <div id="demo-note" class="demo-paper demo-source" role="group" aria-label="Idea notes.png">
             <div class="demo-window-title">
               <span class="demo-file-icon" aria-hidden="true"></span>Idea notes.png
               <button type="button" data-action="close-source" aria-label="Close sample note" title="Close sample note"><span class="demo-icon icon-close"></span></button>
@@ -133,7 +136,8 @@
           <div class="demo-taskbar" aria-label="Demo desktop taskbar">
             <div class="demo-taskbar-apps">
               <span class="demo-launcher" aria-hidden="true"></span>
-              <button type="button" data-action="note" aria-label="Show or hide the sample note" title="Idea notes.png" aria-pressed="true"><span class="demo-file-icon" aria-hidden="true"></span></button>
+              <button type="button" data-action="weekend" aria-label="Show or hide Weekend ideas" title="Weekend ideas.png" aria-controls="demo-weekend" aria-pressed="false"><span class="demo-file-icon demo-weekend-icon" aria-hidden="true"></span></button>
+              <button type="button" data-action="note" aria-label="Show or hide the sample note" title="Idea notes.png" aria-controls="demo-note" aria-pressed="true"><span class="demo-file-icon" aria-hidden="true"></span></button>
             </div>
             <div class="demo-tray">
               <button type="button" data-action="shelf" aria-label="Show or hide the screenshot shelf" title="Screenshot shelf (Ctrl+Alt+T)" aria-pressed="true"><img src="../images/app.ico" width="22" height="22" alt=""></button>
@@ -141,7 +145,7 @@
             </div>
           </div>
         </div>
-        <p class="desktop-caption">The demo uses sample images. Click the Snapline icon in the system tray to show or hide the shelf.</p>
+        <p class="desktop-caption">Drag image windows by their title bars. Use the image icons in the taskbar to show or hide them, or the Snapline tray icon to toggle the shelf.</p>
       </div>
       <div id="desktop-fallback" class="desktop-fallback">
         <img src="../images/01-desktop-shelf.png" width="1440" height="246" alt="Screenshot shelf in the Windows app">

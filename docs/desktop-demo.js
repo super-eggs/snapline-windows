@@ -70,7 +70,8 @@
   const find = selector => demo.querySelector(selector);
   const button = action => find(`[data-action="${action}"]`);
   const desktop = find('.demo-desktop');
-  const note = find('.demo-source');
+  const taskbar = find('.demo-taskbar');
+  const papers = { weekend: find('.demo-document'), note: find('.demo-source') };
   const source = find('.demo-source-image img');
   const capture = find('.demo-capture');
   const captureFrame = find('.demo-capture-frame');
@@ -124,9 +125,41 @@
     if (show) drawRope();
   }
 
-  function showNote(show) {
-    note.hidden = !show;
-    button('note').setAttribute('aria-pressed', String(show));
+  function showPaper(name, show) {
+    const paper = papers[name];
+    paper.hidden = !show;
+    if (!show) paper.removeAttribute('data-front');
+    button(name).setAttribute('aria-pressed', String(show));
+  }
+
+  function bringPaperForward(front) {
+    for (const paper of Object.values(papers)) paper.toggleAttribute('data-front', paper === front);
+  }
+
+  function movePaper(paper, x, y) {
+    const maxX = Math.max(0, desktop.clientWidth - paper.offsetWidth);
+    const maxY = Math.max(0, desktop.clientHeight - taskbar.offsetHeight - paper.offsetHeight);
+    paper.style.left = `${bounds(x, 0, maxX)}px`;
+    paper.style.top = `${bounds(y, 0, maxY)}px`;
+  }
+
+  function fitPaper(paper) {
+    if (!paper.hidden && paper.style.left) movePaper(paper, paper.offsetLeft, paper.offsetTop);
+  }
+
+  function togglePaper(name) {
+    const paper = papers[name];
+    const open = paper.hidden;
+    showPaper(name, open);
+    if (open) {
+      fitPaper(paper);
+      bringPaperForward(paper);
+    }
+  }
+
+  function closePaper(name) {
+    showPaper(name, false);
+    button(name).focus({ preventScroll: true });
   }
 
   function ropeSag() {
@@ -290,6 +323,7 @@
   function openEditor(image) {
     endCapture();
     if (editing) closeEditor();
+    bringPaperForward(null);
     // The editor modifies the demo copy so annotations remain when reopened.
     editing = image;
     selectImage(image);
@@ -384,7 +418,7 @@
 
   function movePin(x, y) {
     pinX = bounds(x, 0, Math.max(0, desktop.clientWidth - pin.offsetWidth));
-    pinY = bounds(y, 0, Math.max(0, desktop.clientHeight - find('.demo-taskbar').offsetHeight - pin.offsetHeight));
+    pinY = bounds(y, 0, Math.max(0, desktop.clientHeight - taskbar.offsetHeight - pin.offsetHeight));
     pin.style.left = `${pinX}px`;
     pin.style.top = `${pinY}px`;
   }
@@ -437,6 +471,24 @@
       gesture = null;
     });
   }
+
+  for (const [name, paper] of Object.entries(papers)) {
+    const title = paper.querySelector('.demo-window-title');
+    paper.addEventListener('pointerdown', () => bringPaperForward(paper));
+    paper.addEventListener('focusin', () => bringPaperForward(paper));
+    track(title, name, event => {
+      if (event.target.closest('button')) return null;
+      return { clientX: event.clientX, clientY: event.clientY, left: paper.offsetLeft, top: paper.offsetTop };
+    }, (event, drag) => {
+      const dx = event.clientX - drag.clientX;
+      const dy = event.clientY - drag.clientY;
+      if (!dx && !dy && !drag.moved) return;
+      drag.moved = true;
+      movePaper(paper, drag.left + dx, drag.top + dy);
+    }, () => {});
+  }
+  editor.addEventListener('pointerdown', () => bringPaperForward(null));
+  editor.addEventListener('focusin', () => bringPaperForward(null));
 
   const capturePoint = event => point(event, capture, captureFrame.width, captureFrame.height);
   track(capture, 'crop', event => {
@@ -595,7 +647,11 @@
     endCapture();
     images = samples.map(image => ({ ...image }));
     selectImage(images[0]);
-    showNote(true);
+    for (const [name, paper] of Object.entries(papers)) {
+      paper.style.removeProperty('left');
+      paper.style.removeProperty('top');
+      showPaper(name, name === 'note');
+    }
     showShelf(true);
     renderShots();
     shots.scrollLeft = 0;
@@ -662,14 +718,10 @@
       say(messages.shelfHidden);
       button('shelf').focus({ preventScroll: true });
     },
-    note: () => {
-      if (!capture.hidden) cancelCapture();
-      showNote(note.hidden);
-    },
-    'close-source': () => {
-      showNote(false);
-      button('note').focus({ preventScroll: true });
-    },
+    weekend: () => togglePaper('weekend'),
+    note: () => togglePaper('note'),
+    'close-weekend': () => closePaper('weekend'),
+    'close-source': () => closePaper('note'),
     tour: () => tourSteps ? stopTour() : playTour(),
     reset,
     whole: () => {
@@ -773,6 +825,7 @@
   });
   new ResizeObserver(() => {
     drawRope();
+    for (const paper of Object.values(papers)) fitPaper(paper);
     if (!capture.hidden) drawCrop(crop);
     if (!editor.hidden) setZoom(zoom);
     if (!pin.hidden) movePin(pinX, pinY);

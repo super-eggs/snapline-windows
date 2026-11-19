@@ -66,11 +66,14 @@
               <button type="button" data-action="collapse" aria-label="收起晾衣绳" title="收起晾衣绳"><span class="demo-icon icon-collapse"></span></button>
             </div>
           </div>
-          <div class="demo-document" aria-hidden="true">
-            <div class="demo-window-title"><span class="demo-file-icon"></span>周末灵感.png</div>
-            <canvas></canvas>
+          <div id="demo-weekend" class="demo-paper demo-document" role="group" aria-label="周末灵感.png" hidden>
+            <div class="demo-window-title">
+              <span class="demo-file-icon demo-weekend-icon" aria-hidden="true"></span>周末灵感.png
+              <button type="button" data-action="close-weekend" aria-label="关闭周末灵感" title="关闭周末灵感"><span class="demo-icon icon-close"></span></button>
+            </div>
+            <canvas role="img" aria-label="带箭头标注的周末灵感示例图"></canvas>
           </div>
-          <div class="demo-source">
+          <div id="demo-note" class="demo-paper demo-source" role="group" aria-label="灵感笔记.png">
             <div class="demo-window-title">
               <span class="demo-file-icon" aria-hidden="true"></span>灵感笔记.png
               <button type="button" data-action="close-source" aria-label="关闭示例笔记" title="关闭示例笔记"><span class="demo-icon icon-close"></span></button>
@@ -133,7 +136,8 @@
           <div class="demo-taskbar" aria-label="示例桌面任务栏">
             <div class="demo-taskbar-apps">
               <span class="demo-launcher" aria-hidden="true"></span>
-              <button type="button" data-action="note" aria-label="显示或隐藏示例笔记" title="灵感笔记.png" aria-pressed="true"><span class="demo-file-icon" aria-hidden="true"></span></button>
+              <button type="button" data-action="weekend" aria-label="显示或隐藏周末灵感" title="周末灵感.png" aria-controls="demo-weekend" aria-pressed="false"><span class="demo-file-icon demo-weekend-icon" aria-hidden="true"></span></button>
+              <button type="button" data-action="note" aria-label="显示或隐藏示例笔记" title="灵感笔记.png" aria-controls="demo-note" aria-pressed="true"><span class="demo-file-icon" aria-hidden="true"></span></button>
             </div>
             <div class="demo-tray">
               <button type="button" data-action="shelf" aria-label="展开或收起截图晾衣绳" title="截图晾衣绳（Ctrl+Alt+T）" aria-pressed="true"><img src="images/app.ico" width="22" height="22" alt=""></button>
@@ -141,7 +145,7 @@
             </div>
           </div>
         </div>
-        <p class="desktop-caption">网页演示使用内置图片。点右下角托盘里的 Snapline 图标可展开或收起晾衣绳。</p>
+        <p class="desktop-caption">拖动标题栏移动图片窗口，点任务栏上的图片图标打开或隐藏窗口。右下角 Snapline 图标可展开或收起晾衣绳。</p>
       </div>
       <div id="desktop-fallback" class="desktop-fallback">
         <img src="images/01-desktop-shelf.png" width="1440" height="246" alt="截图晾衣绳实机界面">
