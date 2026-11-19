@@ -1,5 +1,14 @@
 (() => {
   'use strict';
+  const languageSwitch = document.querySelector('[data-language-switch]');
+  const alternatePage = new URL(languageSwitch.href);
+  function syncLanguageLink() {
+    alternatePage.hash = location.hash;
+    languageSwitch.href = alternatePage.href;
+  }
+  syncLanguageLink();
+  window.addEventListener('hashchange', syncLanguageLink);
+
   const tabs = [...document.querySelectorAll('[role="tab"]')];
   const panels = [...document.querySelectorAll('[role="tabpanel"]')];
   function selectTab(index) {

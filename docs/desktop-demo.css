@@ -9,6 +9,7 @@
   line-height: 1.13;
   letter-spacing: -.075em;
 }
+.hero:lang(en) h1 { white-space: normal; }
 .hero-details { padding-bottom: 8px; }
 .hero-description { margin-top: 0; font-size: clamp(16px, 1.7vw, 23px); line-height: 1.7; }
 .hero-actions { margin-top: 24px; flex-wrap: wrap; }
@@ -364,11 +365,13 @@
   .hero { grid-template-columns: 1fr; gap: 20px; }
   .hero h1 { font-size: clamp(44px, 9.5vw, 66px); }
   .hero-details { padding-bottom: 0; }
+  .download-copy:lang(en) > img { position: static; margin-bottom: 14px; }
   .showcase { display: block; }
   .demo-tabs { grid-template-columns: repeat(4, 1fr); border-right: 0; }
   .demo-tabs button { padding-inline: 4px; text-align: center; }
 }
 @media (max-width: 540px) {
+  .hero:lang(en) h1 { font-size: clamp(36px, 9.8vw, 55px); }
   .desktop-demo { --taskbar-height: 41px; }
   .desktop-toolbar { align-items: flex-start; flex-direction: column-reverse; gap: 6px; }
   .desktop-actions { width: 100%; }

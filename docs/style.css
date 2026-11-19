@@ -36,6 +36,9 @@ kbd { font: inherit; }
 .navigation nav { display: flex; gap: 32px; font-size: 13px; color: #55627a; }
 .navigation nav a { padding: 12px 0; transition: color .2s; }
 .navigation nav a:hover { color: var(--blue); }
+.nav-actions { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+.language-switch { display: inline-flex; align-items: center; min-height: 36px; padding-inline: 6px; font-size: 13px; color: #435979; }
+.language-switch:hover { color: var(--blue); text-decoration: underline; text-underline-offset: 4px; }
 .nav-download { display: flex; align-items: center; gap: 16px; font-size: 13px; font-weight: 600; border: 1px solid #cdd8ed; padding: 9px 15px; border-radius: 8px; transition: background .2s; }
 .nav-download:hover { background: #e7edfa; }
 
@@ -211,6 +214,8 @@ dialog > img { max-width: 100%; max-height: calc(92dvh - 60px); object-fit: cont
   .brand-cn { font-size: 9px; letter-spacing: 2px; }
   .navigation { gap: 10px; }
   .navigation nav { display: none; }
+  .nav-actions { gap: 5px; }
+  .language-switch { padding-inline: 4px; font-size: 11px; }
   .nav-download { font-size: 11px; padding: 8px 11px; gap: 8px; }
   .hero { padding-top: 29px; gap: 33px; }
   .eyebrow { font-size: 9px; letter-spacing: .7px; }

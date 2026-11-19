@@ -1,6 +1,67 @@
 (() => {
   'use strict';
 
+  const english = document.documentElement.lang === 'en';
+  const messages = english ? {
+    selected: name => `Selected “${name}.” Double-click the image or choose Preview selected image.`,
+    startCapture: 'Drag over the sample note, or select the entire image from the toolbar.',
+    newCapture: 'New screenshot',
+    collected: 'Added to the shelf. Double-click the thumbnail or choose Preview selected image.',
+    openEditor: 'Click the pen icon at the top of the preview to show the annotation tools.',
+    undo: 'Undid the last change.',
+    rotatedLeft: 'Rotated 90° counterclockwise.',
+    rotatedRight: 'Rotated 90° clockwise.',
+    pinned: 'Drag to move. Scroll to resize, hold Ctrl while scrolling to change opacity, or double-click to close.',
+    cropped: (width, height) => `Selected ${width} × ${height} pixels. Click the check mark to finish.`,
+    marked: 'Annotation added. Undo it or pin the image to the desktop.',
+    tour: 'Watch demo',
+    stopTour: 'Stop demo',
+    tourCrop: 'Select part of the sample note.',
+    tourMark: 'Use an arrow to point out a detail.',
+    reset: 'Select Capture to crop the sample note, or open the annotation tools in the preview.',
+    cancelCapture: 'Capture canceled.',
+    closePreview: 'Preview closed. Annotations are kept in the demo copy.',
+    closePin: 'Pinned image closed.',
+    shelfHidden: 'Screenshot shelf hidden. Click the Snapline icon in the system tray to reopen it.',
+    shelfShown: 'Screenshot shelf shown.',
+    whole: 'Entire sample image selected. Click the check mark to finish.',
+    annotate: 'Choose Pen or Arrow, then drag on the image to annotate.',
+    saved: 'Saved to the demo copy.',
+    design: 'Design review',
+    weekend: 'Weekend ideas',
+    notes: 'A good idea',
+    unavailable: 'The sample images could not load. Refresh the page to try again.',
+  } : {
+    selected: name => `已选中「${name}」。双击图片或点击「预览选中图片」。`,
+    startCapture: '在示例笔记上拖动框选，也可用工具栏选择整张。',
+    newCapture: '刚刚截取的图片',
+    collected: '截图已挂到晾衣绳。双击缩略图或点击「预览选中图片」。',
+    openEditor: '点击预览顶部的画笔图标展开标注工具。',
+    undo: '已撤销上一步。',
+    rotatedLeft: '已向左旋转 90°。',
+    rotatedRight: '已向右旋转 90°。',
+    pinned: '拖住图片直接移动。滚轮缩放，Ctrl+滚轮调节透明度，双击关闭。',
+    cropped: (width, height) => `已框选 ${width} × ${height} 像素。点击工具栏上的对勾完成截图。`,
+    marked: '已添加标注。可以撤销，或把结果贴到桌面。',
+    tour: '观看演示',
+    stopTour: '停止演示',
+    tourCrop: '框选示例笔记中需要的区域。',
+    tourMark: '用箭头标出重点。',
+    reset: '点击「截图」框选示例笔记，或打开预览里的标注工具。',
+    cancelCapture: '已取消截图。',
+    closePreview: '预览已关闭，标注已保留在演示图片上。',
+    closePin: '贴图已关闭。',
+    shelfHidden: '晾衣绳已收起。点击右下角的 Snapline 图标可再次展开。',
+    shelfShown: '晾衣绳已展开。',
+    whole: '已选择整张示例图片。点击工具栏上的对勾完成截图。',
+    annotate: '选择画笔或箭头后，在图片上拖动标注。',
+    saved: '已保存到演示副本。',
+    design: '页面设计评审',
+    weekend: '周末灵感',
+    notes: '一个好点子',
+    unavailable: '示例图片未能加载，刷新页面后可重试。',
+  };
+
   const demo = document.querySelector('#desktop-demo');
   const find = selector => demo.querySelector(selector);
   const button = action => find(`[data-action="${action}"]`);
@@ -44,7 +105,7 @@
 
   async function loadImage(path) {
     const image = new Image();
-    image.src = path;
+    image.src = new URL(path, source.src).href;
     await image.decode();
     return image;
   }
@@ -115,7 +176,7 @@
       item.append(thumb);
       item.addEventListener('click', () => {
         selectImage(image);
-        say(`已选中「${image.name}」。双击图片或点击「预览选中图片」。`);
+        say(messages.selected(image.name));
       });
       item.addEventListener('dblclick', () => openEditor(image));
       image.thumbnail = item;
@@ -158,20 +219,20 @@
     showNote(true);
     capture.hidden = captureActions.hidden = false;
     drawCrop(null);
-    say('在示例笔记上拖动框选，也可用工具栏选择整张。');
+    say(messages.startCapture);
   }
 
   function collect() {
     if (button('collect').disabled) return;
     const { x, y, w, h } = crop;
-    selectImage({ name: '刚刚截取的图片', canvas: canvasCopy(source, x, y, w, h) });
+    selectImage({ name: messages.newCapture, canvas: canvasCopy(source, x, y, w, h) });
     images.unshift(selected);
     images.length = Math.min(images.length, 10);
     endCapture();
     showShelf(true);
     renderShots();
     shots.scrollLeft = 0;
-    say('截图已挂到晾衣绳。双击缩略图或点击「预览选中图片」。');
+    say(messages.collected);
   }
 
   function setZoom(value) {
@@ -220,7 +281,7 @@
     editor.hidden = false;
     showEditorTools(false);
     button('undo').disabled = true;
-    say('点击预览顶部的画笔图标展开标注工具。');
+    say(messages.openEditor);
   }
 
   function closeEditor() {
@@ -259,7 +320,7 @@
     if (!history.length) return;
     restore(history.pop());
     button('undo').disabled = !history.length;
-    say('已撤销上一步。');
+    say(messages.undo);
   }
 
   function rotate(direction) {
@@ -274,7 +335,7 @@
     ctx.drawImage(previous, 0, 0);
     ctx.resetTransform();
     setZoom(zoom);
-    say(`已向${direction > 0 ? '右' : '左'}旋转 90°。`);
+    say(direction > 0 ? messages.rotatedRight : messages.rotatedLeft);
   }
 
   function mark(from, to, kind) {
@@ -320,7 +381,7 @@
     pinX = desktop.clientWidth * .7;
     pinY = desktop.clientHeight * .39;
     adjustPin();
-    say('拖住图片直接移动。滚轮缩放，Ctrl+滚轮调节透明度，双击关闭。');
+    say(messages.pinned);
   }
 
   function point(event, surface, width, height) {
@@ -377,7 +438,7 @@
     drawCrop({ x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y) });
   }, ({ before }, canceled) => {
     if (canceled) drawCrop(before);
-    else if (!button('collect').disabled) say(`已框选 ${crop.w} × ${crop.h} 像素。点击工具栏上的对勾完成截图。`);
+    else if (!button('collect').disabled) say(messages.cropped(crop.w, crop.h));
   });
 
   const editorPoint = event => point(event, editorCanvas, editorCanvas.width, editorCanvas.height);
@@ -396,7 +457,7 @@
     if (canceled) restore(drag.before);
     else if (drag.changed) {
       remember(drag.before);
-      say('已添加标注。可以撤销，或把结果贴到桌面。');
+      say(messages.marked);
     }
   });
 
@@ -430,18 +491,18 @@
     highlighted?.classList.remove('demo-tour-focus');
     highlighted = null;
     button('tour').setAttribute('aria-pressed', 'false');
-    button('tour').textContent = '观看演示';
+    button('tour').textContent = messages.tour;
   }
 
   function playTour() {
     stopTour();
     button('tour').setAttribute('aria-pressed', 'true');
-    button('tour').textContent = '停止演示';
+    button('tour').textContent = messages.stopTour;
     tourSteps = [
       [capture, startCapture],
       [button('collect'), () => {
         drawCrop({ x: 32, y: 26, w: 552, h: 330 });
-        say('框选示例笔记中需要的区域。');
+        say(messages.tourCrop);
       }],
       [button('open'), collect],
       [editor, () => openEditor(selected)],
@@ -450,7 +511,7 @@
         const { width, height } = editorCanvas;
         remember(snapshot());
         mark({ x: width * .23, y: height * .22 }, { x: width * .6, y: height * .5 }, 'arrow');
-        say('用箭头标出重点。');
+        say(messages.tourMark);
       }],
       [pin, () => pinPreview(false)],
     ];
@@ -482,18 +543,18 @@
     renderShots();
     shots.scrollLeft = 0;
     openEditor(selected);
-    say('点击「截图」框选示例笔记，或打开预览里的标注工具。');
+    say(messages.reset);
   }
 
   function cancelCapture() {
     endCapture();
-    say('已取消截图。');
+    say(messages.cancelCapture);
   }
 
   function closePreview() {
     closeEditor();
     (shelf.hidden ? button('shelf') : button('open')).focus({ preventScroll: true });
-    say('预览已关闭，标注已保留在演示图片上。');
+    say(messages.closePreview);
   }
 
   function pinPreview(focus = true) {
@@ -513,7 +574,7 @@
     if (gesture?.kind === 'pin') gesture = null;
     pin.hidden = true;
     button('capture').focus({ preventScroll: true });
-    say('贴图已关闭。');
+    say(messages.closePin);
   }
 
   const actions = {
@@ -523,11 +584,11 @@
     },
     shelf: () => {
       showShelf(shelf.hidden);
-      say(shelf.hidden ? '晾衣绳已收起。' : '晾衣绳已展开。');
+      say(shelf.hidden ? messages.shelfHidden : messages.shelfShown);
     },
     collapse: () => {
       showShelf(false);
-      say('晾衣绳已收起。点击右下角的 Snapline 图标可再次展开。');
+      say(messages.shelfHidden);
       button('shelf').focus({ preventScroll: true });
     },
     note: () => {
@@ -542,7 +603,7 @@
     reset,
     whole: () => {
       drawCrop(whole());
-      say('已选择整张示例图片。点击工具栏上的对勾完成截图。');
+      say(messages.whole);
       button('collect').focus({ preventScroll: true });
     },
     cancel: () => {
@@ -560,11 +621,11 @@
     'close-editor': closePreview,
     annotate: () => {
       showEditorTools(editorTools.hidden);
-      if (!editorTools.hidden) say('选择画笔或箭头后，在图片上拖动标注。');
+      if (!editorTools.hidden) say(messages.annotate);
     },
     save: () => {
       closePreview();
-      say('已保存到演示副本。');
+      say(messages.saved);
     },
     undo,
     rotate: () => rotate(1),
@@ -621,13 +682,13 @@
   async function init() {
     const [, design, weekend] = await Promise.all([
       source.decode(),
-      loadImage('images/02-image-preview.png'),
-      loadImage('images/05-capture-annotation.png'),
+      loadImage(english ? 'en-design-review.png' : '02-image-preview.png'),
+      loadImage(english ? 'en-capture-annotation.png' : '05-capture-annotation.png'),
     ]);
     samples = [
-      { name: '页面设计评审', canvas: canvasCopy(design, 100, 103, 900, 560) },
-      { name: '周末灵感', canvas: canvasCopy(weekend) },
-      { name: '一个好点子', canvas: canvasCopy(source) },
+      { name: messages.design, canvas: english ? canvasCopy(design) : canvasCopy(design, 100, 103, 900, 560) },
+      { name: messages.weekend, canvas: canvasCopy(weekend) },
+      { name: messages.notes, canvas: canvasCopy(source) },
     ];
     reset();
     const backdrop = find('.demo-document canvas');
@@ -650,6 +711,6 @@
   }
 
   init().catch(() => {
-    document.querySelector('#desktop-fallback p').textContent = '示例图片未能加载，刷新页面后可重试。';
+    document.querySelector('#desktop-fallback p').textContent = messages.unavailable;
   });
 })();
