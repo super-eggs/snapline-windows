@@ -73,7 +73,7 @@
   height: 20px;
   display: block;
   background: currentColor;
-  mask: url("images/snapline-toolbar.png") var(--icon) center / 320px 20px no-repeat;
+  mask: url("images/snapline-toolbar.png") var(--icon) center / 500px 20px no-repeat;
   pointer-events: none;
 }
 /* Positions in the strip exported from the Windows application's Ui.IconButton. */
@@ -92,6 +92,16 @@
 .icon-check { --icon: -240px; }
 .icon-reselect { --icon: -260px; }
 .icon-collapse { --icon: -280px; }
+.icon-width { --icon: -300px; }
+.icon-hand { --icon: -320px; }
+.icon-rectangle { --icon: -340px; }
+.icon-ellipse { --icon: -360px; }
+.icon-line { --icon: -380px; }
+.icon-text { --icon: -400px; }
+.icon-mosaic { --icon: -420px; }
+.icon-eraser { --icon: -440px; }
+.icon-redo { --icon: -460px; }
+.icon-picker { --icon: -480px; }
 
 .demo-shelf { position: absolute; inset: 0 0 auto; z-index: 4; pointer-events: none; }
 .demo-rope { position: absolute; inset: 31px 0 auto; width: 100%; height: 36px; }
@@ -234,6 +244,9 @@
 }
 .demo-capture:has(.demo-selection:not([hidden])) { background: transparent; }
 .demo-selection { position: absolute; border: 1px solid var(--native-accent); box-shadow: 0 0 0 2000px #03050780; pointer-events: none; }
+.demo-crop-art { display: block; width: 100%; height: 100%; }
+.demo-capture[data-mode="mark"] [data-edge],
+.demo-capture[data-locked] [data-edge] { display: none; }
 .demo-selection [data-edge] {
   position: absolute;
   left: 50%;
@@ -275,12 +288,79 @@
   position: absolute;
   z-index: 9;
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   width: max-content;
+  max-width: calc(100% - 12px);
   border-radius: 6px;
   padding: 4px;
 }
-.demo-capture-actions button, .demo-editor button, .demo-pin-tools button { width: 32px; height: 32px; }
+.demo-capture-actions[data-dragging] { visibility: hidden; }
+.demo-capture-actions button, .demo-editor button, .demo-pin-tools button { width: 32px; height: 32px; padding: 0; }
+.demo-capture-actions [data-action="whole"] { width: auto; padding-inline: 10px; font-size: 12px; }
+.demo-capture-options { display: contents; }
+.demo-capture-divider { align-self: center; width: 1px; height: 16px; margin-inline: 2px; background: var(--native-edge); }
+.demo-capture-actions button[aria-pressed="true"], .demo-capture-actions button[aria-expanded="true"] {
+  color: var(--native-accent);
+  border-color: #695b45;
+  background: #453e33;
+}
+.demo-ink-dot { display: block; width: 15px; height: 15px; border: 1px solid #ffffff55; border-radius: 50%; }
+.demo-capture-choice { position: relative; }
+.demo-capture-popover, .demo-capture-text, .demo-color-reading {
+  border: 1px solid var(--native-edge);
+  border-radius: 6px;
+  background: var(--native-surface);
+  color: var(--native-text);
+  box-shadow: 0 6px 16px #06112373;
+}
+.demo-capture-popover {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: calc(100% + 5px);
+  display: flex;
+  padding: 4px;
+}
+.demo-capture-popover button { width: 28px; height: 28px; font-size: 11px; white-space: nowrap; }
+.demo-capture-popover [data-width] { width: 38px; }
+.demo-capture-text {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  gap: 4px;
+  padding: 5px;
+  pointer-events: auto;
+  width: min(175px, 54vw);
+}
+.demo-capture-text textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 4px;
+  resize: none;
+  border: 1px solid var(--native-edge);
+  border-radius: 4px;
+  font: 12px/1.4 var(--font);
+  background: var(--native-raised);
+  color: var(--native-text);
+}
+.demo-capture-text button { justify-self: end; padding: 2px 7px; font-size: 11px; background: var(--native-raised); }
+.demo-color-reading {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  font: 11px/1.4 Consolas, monospace;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+.demo-color-reading button { padding: 2px 4px; font-size: 11px; }
+.demo-color-reading button:hover { background: var(--native-raised); }
+.demo-color-lens { position: relative; }
+.demo-color-lens canvas { display: block; width: 45px; height: 45px; image-rendering: pixelated; }
+.demo-color-lens::after { content: ""; position: absolute; inset: 19px; border: 1px solid white; box-shadow: 0 0 0 1px #222; }
 .demo-capture-actions button:not(:disabled):hover, .demo-editor button:not(:disabled):hover, .demo-pin-tools button:hover { background: #3b3c3d; }
 .desktop-demo .demo-native-highlight, .demo-editor button[aria-pressed="true"], .demo-editor button[aria-expanded="true"] {
   color: var(--native-accent);

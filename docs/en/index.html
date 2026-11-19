@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="../style.css">
   <link rel="stylesheet" href="../desktop-demo.css">
   <script src="../script.js" defer></script>
+  <script src="../capture-tools.js" defer></script>
   <script src="../desktop-demo.js" defer></script>
 </head>
 <body>
@@ -75,6 +76,7 @@
           </div>
           <div class="demo-capture" tabindex="-1" aria-label="Drag to select part of the sample note" hidden>
             <div class="demo-selection" hidden>
+              <canvas class="demo-crop-art" aria-hidden="true"></canvas>
               <span class="demo-crop-size"></span>
               <span data-edge="nw"></span><span data-edge="n"></span><span data-edge="ne"></span>
               <span data-edge="w"></span><span data-edge="e"></span>
@@ -82,7 +84,9 @@
             </div>
           </div>
           <div class="demo-capture-actions" aria-label="Capture toolbar" hidden>
-            <button type="button" data-action="whole" aria-label="Select the entire sample image" title="Select the entire sample image"><span class="demo-icon icon-reselect"></span></button>
+            <button type="button" data-action="whole" title="Select the entire sample image (Ctrl+A)">Select all</button>
+            <button type="button" data-action="reselect" aria-label="Reselect area" title="Reselect area" hidden><span class="demo-icon icon-reselect"></span></button>
+            <button type="button" data-action="save-crop" aria-label="Save PNG" title="Save as PNG (Ctrl+S)" disabled><span class="demo-icon icon-save"></span></button>
             <button type="button" data-action="pin-crop" aria-label="Pin to desktop" title="Pin to desktop (Ctrl+T)" disabled><span class="demo-icon icon-pin"></span></button>
             <button type="button" data-action="cancel" aria-label="Cancel capture" title="Cancel (Esc)"><span class="demo-icon icon-close"></span></button>
             <button type="button" data-action="collect" aria-label="Finish capture and add to shelf" title="Finish capture (Enter)" class="demo-native-highlight" disabled><span class="demo-icon icon-check"></span></button>
@@ -162,7 +166,7 @@
           </div>
           <div id="panel-capture" class="demo-panel" role="tabpanel" aria-labelledby="tab-capture" tabindex="0" hidden>
             <div class="demo-copy"><h3>Capture a detail and point it out.</h3><p>Press F1, drag to select an area, or choose a detected control. Open the color picker to copy HEX or RGB values from the selection.</p></div>
-            <div class="capture-stage"><img class="capture-example" src="../images/en-capture-annotation.png" alt="Sample screenshot with an arrow highlighting a detail" width="301" height="201" loading="lazy"><img class="capture-toolbar" src="../images/04-capture-toolbar.png" alt="Capture toolbar with pen, shapes, text, mosaic, color picker, and save" width="645" height="42" loading="lazy"></div>
+            <a class="capture-stage" href="#try" data-try-capture><img class="capture-example" src="../images/en-capture-annotation.png" alt="" width="301" height="201" loading="lazy"><img class="capture-toolbar" src="../images/04-capture-toolbar.png" alt="" width="645" height="42" loading="lazy"><span class="button primary">Try the capture tools <span aria-hidden="true">↑</span></span></a>
           </div>
           <div id="panel-pin" class="demo-panel" role="tabpanel" aria-labelledby="tab-pin" tabindex="0" hidden>
             <div class="demo-copy"><h3>Keep your reference in view.</h3><p>Press F3 to pin an image, text, or a color from the clipboard. Drag to move it, scroll to resize it, or hold Ctrl while scrolling to change opacity.</p></div>

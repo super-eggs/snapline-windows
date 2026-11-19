@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="desktop-demo.css">
   <script src="script.js" defer></script>
+  <script src="capture-tools.js" defer></script>
   <script src="desktop-demo.js" defer></script>
 </head>
 <body>
@@ -75,6 +76,7 @@
           </div>
           <div class="demo-capture" tabindex="-1" aria-label="拖动框选示例笔记里的内容" hidden>
             <div class="demo-selection" hidden>
+              <canvas class="demo-crop-art" aria-hidden="true"></canvas>
               <span class="demo-crop-size"></span>
               <span data-edge="nw"></span><span data-edge="n"></span><span data-edge="ne"></span>
               <span data-edge="w"></span><span data-edge="e"></span>
@@ -82,7 +84,9 @@
             </div>
           </div>
           <div class="demo-capture-actions" aria-label="截图工具栏" hidden>
-            <button type="button" data-action="whole" aria-label="选择整张示例图" title="选择整张示例图"><span class="demo-icon icon-reselect"></span></button>
+            <button type="button" data-action="whole" title="选择整张示例图（Ctrl+A）">选择整张</button>
+            <button type="button" data-action="reselect" aria-label="重新框选" title="重新框选" hidden><span class="demo-icon icon-reselect"></span></button>
+            <button type="button" data-action="save-crop" aria-label="另存 PNG" title="另存为 PNG（Ctrl+S）" disabled><span class="demo-icon icon-save"></span></button>
             <button type="button" data-action="pin-crop" aria-label="贴到屏幕" title="贴到屏幕（Ctrl+T）" disabled><span class="demo-icon icon-pin"></span></button>
             <button type="button" data-action="cancel" aria-label="取消截图" title="取消（Esc）"><span class="demo-icon icon-close"></span></button>
             <button type="button" data-action="collect" aria-label="完成截图并收进晾衣绳" title="完成截图（Enter）" class="demo-native-highlight" disabled><span class="demo-icon icon-check"></span></button>
@@ -162,7 +166,7 @@
           </div>
           <div id="panel-capture" class="demo-panel" role="tabpanel" aria-labelledby="tab-capture" tabindex="0" hidden>
             <div class="demo-copy"><h3>一键截图，顺手圈出你想说的。</h3><p>F1 开始截图，自由框选或选择识别到的控件。选好区域后打开取色器，复制 HEX / RGB 颜色。</p></div>
-            <div class="capture-stage"><img class="capture-example" src="images/05-capture-annotation.png" alt="截图示例：在周末灵感图片上用箭头指出重点" width="301" height="201" loading="lazy"><img class="capture-toolbar" src="images/04-capture-toolbar.png" alt="真实截图工具栏，包含画笔、形状、文字、马赛克、取色与保存" width="645" height="42" loading="lazy"></div>
+            <a class="capture-stage" href="#try" data-try-capture><img class="capture-example" src="images/05-capture-annotation.png" alt="" width="301" height="201" loading="lazy"><img class="capture-toolbar" src="images/04-capture-toolbar.png" alt="" width="645" height="42" loading="lazy"><span class="button primary">试用截图工具 <span aria-hidden="true">↑</span></span></a>
           </div>
           <div id="panel-pin" class="demo-panel" role="tabpanel" aria-labelledby="tab-pin" tabindex="0" hidden>
             <div class="demo-copy"><h3>把参考留在眼前，思路就不用来回切。</h3><p>F3 将剪贴板图片、文字或颜色贴到屏幕。拖动移动，滚轮缩放，Ctrl+滚轮调节透明度。</p></div>

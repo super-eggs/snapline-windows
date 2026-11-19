@@ -27,6 +27,8 @@
     whole: 'Entire sample image selected. Click the check mark to finish.',
     annotate: 'Choose Pen or Arrow, then drag on the image to annotate.',
     saved: 'Saved to the demo copy.',
+    captureReady: 'The entire sample is selected. Reselect an area or use the toolbar to annotate, pick a color, or save.',
+    savedCapture: 'PNG download started. You can keep editing this capture.',
     design: 'Design review',
     weekend: 'Weekend ideas',
     notes: 'A good idea',
@@ -56,6 +58,8 @@
     whole: '已选择整张示例图片。点击工具栏上的对勾完成截图。',
     annotate: '选择画笔或箭头后，在图片上拖动标注。',
     saved: '已保存到演示副本。',
+    captureReady: '已选中整张示例图。可重新框选，也可直接用工具栏标注、取色或保存。',
+    savedCapture: '已开始下载 PNG，可以继续编辑这次截图。',
     design: '页面设计评审',
     weekend: '周末灵感',
     notes: '一个好点子',
@@ -87,6 +91,7 @@
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const bounds = (value, min, max) => Math.max(min, Math.min(value, max));
   const say = message => { status.textContent = message; };
+  const captureTools = createCaptureTools(capture, captureActions, source, say, english);
   const whole = () => ({ x: 0, y: 0, w: source.naturalWidth, h: source.naturalHeight });
   let samples, images, selected, editing, crop, pinX, pinY, gesture;
   let zoom = 1;
@@ -190,7 +195,11 @@
     crop = rect;
     const valid = rect && rect.w >= 8 && rect.h >= 8;
     selection.hidden = !valid;
-    button('collect').disabled = button('pin-crop').disabled = !valid;
+    button('collect').disabled = button('pin-crop').disabled = button('save-crop').disabled = !valid;
+    button('save-crop').hidden = button('pin-crop').hidden = button('collect').hidden = !valid;
+    button('whole').hidden = Boolean(valid);
+    button('reselect').hidden = !valid;
+    captureTools.setRegion(valid ? rect : null);
     if (capture.hidden) return;
     const frame = capture.getBoundingClientRect();
     const img = source.getBoundingClientRect();
@@ -204,12 +213,16 @@
     const toolsWidth = captureActions.offsetWidth;
     const toolsHeight = captureActions.offsetHeight;
     captureActions.style.left = `${bounds(left + width - toolsWidth, 6, frame.width - toolsWidth - 6)}px`;
-    captureActions.style.top = `${bounds(top + height + 7, 6, frame.height - toolsHeight - 6)}px`;
+    const below = top + height + 7;
+    const above = top - toolsHeight - 32;
+    const toolbarTop = below + toolsHeight > frame.height - 6 && above >= 6 ? above : below;
+    captureActions.style.top = `${bounds(toolbarTop, 6, frame.height - toolsHeight - 6)}px`;
   }
 
   function endCapture() {
     if (gesture?.kind === 'crop') gesture = null;
     capture.hidden = captureActions.hidden = true;
+    captureActions.removeAttribute('data-dragging');
     drawCrop(null);
   }
 
@@ -224,8 +237,8 @@
 
   function collect() {
     if (button('collect').disabled) return;
-    const { x, y, w, h } = crop;
-    selectImage({ name: messages.newCapture, canvas: canvasCopy(source, x, y, w, h) });
+    captureTools.commitText();
+    selectImage({ name: messages.newCapture, canvas: canvasCopy(captureTools.canvas) });
     images.unshift(selected);
     images.length = Math.min(images.length, 10);
     endCapture();
@@ -417,14 +430,36 @@
 
   const capturePoint = event => point(event, source, source.naturalWidth, source.naturalHeight);
   track(capture, 'crop', event => {
+    if (event.target.closest('.demo-capture-text, .demo-color-reading')) return null;
+    const start = capturePoint(event);
+    if (capture.dataset.mode === 'mark') {
+      event.preventDefault();
+      capture.focus({ preventScroll: true });
+      const annotation = captureTools.begin(start);
+      return annotation ? { annotation } : null;
+    }
+    if (capture.hasAttribute('data-locked')) return null;
     const before = crop;
     const edge = event.target.dataset.edge;
+    captureActions.setAttribute('data-dragging', '');
     if (edge) return { before, edge };
-    const start = capturePoint(event);
+    if (before && start.x >= before.x && start.x <= before.x + before.w && start.y >= before.y && start.y <= before.y + before.h) {
+      return { before, start, moving: true };
+    }
     drawCrop({ ...start, w: 0, h: 0 });
     return { start, before };
-  }, (event, { start, edge, before }) => {
+  }, (event, { start, edge, before, annotation, moving }) => {
     const end = capturePoint(event);
+    if (annotation) {
+      captureTools.update(annotation, end, event.shiftKey);
+      return;
+    }
+    if (moving) {
+      const x = bounds(before.x + end.x - start.x, 0, source.naturalWidth - before.w);
+      const y = bounds(before.y + end.y - start.y, 0, source.naturalHeight - before.h);
+      drawCrop({ ...before, x, y });
+      return;
+    }
     if (edge) {
       const right = before.x + before.w;
       const bottom = before.y + before.h;
@@ -436,10 +471,20 @@
       return;
     }
     drawCrop({ x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y) });
-  }, ({ before }, canceled) => {
-    if (canceled) drawCrop(before);
-    else if (!button('collect').disabled) say(messages.cropped(crop.w, crop.h));
+  }, ({ before, annotation }, canceled) => {
+    if (annotation) {
+      captureTools.finish(annotation, canceled);
+      if (!canceled && annotation.kind !== 'eraser') say(messages.marked);
+    } else {
+      captureActions.removeAttribute('data-dragging');
+      if (canceled) drawCrop(before);
+      else if (!button('collect').disabled) say(messages.cropped(crop.w, crop.h));
+    }
   });
+  capture.addEventListener('pointermove', event => {
+    if (!event.target.closest('.demo-color-reading')) captureTools.hover(capturePoint(event));
+  });
+  capture.addEventListener('pointerleave', () => captureTools.hover({ x: -1, y: -1 }));
 
   const editorPoint = event => point(event, editorCanvas, editorCanvas.width, editorCanvas.height);
   track(editorCanvas, 'mark', event => {
@@ -564,10 +609,24 @@
   }
 
   function pinCrop() {
-    const { x, y, w, h } = crop;
-    showPin(canvasCopy(source, x, y, w, h));
+    captureTools.commitText();
+    showPin(captureTools.canvas);
     endCapture();
     pinHandle.focus({ preventScroll: true });
+  }
+
+  function saveCrop() {
+    captureTools.commitText();
+    captureTools.canvas.toBlob(blob => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const download = document.createElement('a');
+      download.href = url;
+      download.download = 'snapline-capture.png';
+      download.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      say(messages.savedCapture);
+    });
   }
 
   function closePin() {
@@ -606,6 +665,12 @@
       say(messages.whole);
       button('collect').focus({ preventScroll: true });
     },
+    reselect: () => {
+      drawCrop(null);
+      say(messages.startCapture);
+      capture.focus({ preventScroll: true });
+    },
+    'save-crop': saveCrop,
     cancel: () => {
       cancelCapture();
       button('capture').focus({ preventScroll: true });
@@ -652,6 +717,13 @@
   demo.addEventListener('keydown', event => {
     const togglesTour = event.target === button('tour') && (event.key === 'Enter' || event.key === ' ');
     if (!togglesTour) stopTour();
+    if (!capture.hidden) {
+      if (captureTools.handleKey(event)) {
+        event.preventDefault();
+        return;
+      }
+      if (event.target.matches('textarea')) return;
+    }
     if (event.key === 'Escape') {
       if (!capture.hidden) actions.cancel();
       else if (!editor.hidden) closePreview();
@@ -663,6 +735,8 @@
       actions.collect();
     } else if (event.key.toLowerCase() === 'a' && event.ctrlKey && !capture.hidden) {
       actions.whole();
+    } else if (event.key.toLowerCase() === 's' && event.ctrlKey && !capture.hidden && !button('save-crop').disabled) {
+      saveCrop();
     } else if (event.key.toLowerCase() === 't' && event.ctrlKey && !event.altKey && !capture.hidden && !button('pin-crop').disabled) {
       pinCrop();
     } else if (event.key.toLowerCase() === 't' && event.ctrlKey && event.altKey) {
@@ -671,6 +745,17 @@
       undo();
     } else return;
     event.preventDefault();
+  });
+  document.querySelector('[data-try-capture]').addEventListener('click', event => {
+    if (demo.hidden || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    stopTour();
+    startCapture();
+    drawCrop(whole());
+    say(messages.captureReady);
+    location.hash = 'try';
+    document.querySelector('#try').scrollIntoView();
+    capture.focus({ preventScroll: true });
   });
   new ResizeObserver(() => {
     drawRope();
