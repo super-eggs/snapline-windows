@@ -50,19 +50,7 @@ kbd { font: inherit; }
 .button.primary:hover { background: #174ac9; transform: translateY(-2px); box-shadow: 0 9px 20px #275ddf24; }
 .text-link { display: inline-flex; align-items: center; gap: 14px; font-size: 13px; font-weight: 600; }
 .text-link:hover { color: var(--blue); }
-.hero-art { height: 500px; position: relative; isolation: isolate; border-radius: 32px; background: linear-gradient(145deg, #e6eef9, #e1ecff 62%, #ecf0fa); overflow: hidden; border: 1px solid #e1e8f4; box-shadow: inset 0 0 70px #ffffff90; }
-.art-grid { position: absolute; inset: 0; z-index: -1; background-image: linear-gradient(#89a5cc14 1px, transparent 1px), linear-gradient(90deg, #89a5cc14 1px, transparent 1px); background-size: 32px 32px; mask-image: linear-gradient(transparent, #0008 50%, transparent); }
-.art-orbit { position: absolute; border: 1px solid #ffffffa0; border-radius: 50%; z-index: -1; pointer-events: none; }
-.orbit-one { width: 580px; height: 580px; top: 50px; left: 30px; }
-.orbit-two { width: 800px; height: 800px; top: -60px; left: -80px; }
-.hero-shelf { position: absolute; max-width: none; width: 920px; top: 25px; left: 50%; transform: translateX(-50%); border-block: 1px solid #ffffff90; box-shadow: 0 20px 24px -24px #526b9a77; }
-.hero-preview { position: absolute; width: 470px; max-width: 77%; top: 174px; left: 16%; border-radius: 8px; transform: rotate(-5deg); box-shadow: 0 28px 50px -18px #31579260; border: 5px solid #ffffffc0; transition: transform .4s ease; }
-.hero-art:hover .hero-preview { transform: rotate(-2deg) translateY(-4px); }
-.hero-key { position: absolute; right: 22px; bottom: 58px; padding: 14px 17px 18px; background: #ffffffec; border: 1px solid #fff; border-radius: 13px; box-shadow: 0 12px 32px #314d7720; transform: rotate(5deg); }
-.hero-key > span { display: block; font-size: 10px; color: #61728b; margin-bottom: 9px; }
-.hero-key > div { display: flex; align-items: center; gap: 7px; }
-.hero-key b { font-size: 10px; font-weight: 400; color: #8e9aae; }
-.hero-key kbd { font-family: Consolas, monospace; font-size: 12px; background: #f7f9fc; border: 1px solid #dce2eb; border-bottom-width: 3px; border-radius: 5px; padding: 3px 7px; }
+
 .essentials { display: flex; align-items: center; justify-content: space-between; gap: 24px; border-top: 1px solid var(--line); padding-block: 24px; font-size: 12px; color: #71809a; }
 .essentials > a { font-weight: 600; color: #435979; }
 .essentials a:hover { color: var(--blue); }
@@ -164,20 +152,12 @@ dialog > img { max-width: 100%; max-height: calc(92dvh - 60px); object-fit: cont
 
 @media (min-width: 1500px) {
   .hero { padding-top: 70px; }
-  .hero-art { height: 530px; }
-  .hero-preview { width: 490px; top: 183px; }
-  .hero-key { bottom: 66px; }
   .hero h1 { font-size: 74px; }
 }
 @media (max-width: 1100px) {
   .container { width: calc(100% - 64px); }
   .hero { gap: 20px; padding-top: 36px; grid-template-columns: 1fr 1fr; }
   .hero h1 { font-size: 54px; }
-  .hero-art { height: 440px; }
-  .hero-shelf { width: 790px; top: 26px; }
-  .hero-preview { top: 160px; left: 9%; max-width: 84%; }
-  .hero-key { right: 16px; bottom: 47px; padding: 11px 12px; }
-  .hero-key kbd { padding: 2px 5px; }
   .hero-actions { gap: 16px; }
   .hero-actions .button { gap: 15px; padding-inline: 16px; }
   .hero-actions .text-link { font-size: 12px; gap: 6px; }
@@ -195,10 +175,6 @@ dialog > img { max-width: 100%; max-height: calc(92dvh - 60px); object-fit: cont
   .hero-copy { max-width: 600px; }
   .hero h1 { font-size: 64px; letter-spacing: -3px; }
   .hero-description { font-size: 17px; }
-  .hero-art { height: 470px; }
-  .hero-preview { width: 450px; left: 17%; top: 165px; max-width: 75%; }
-  .hero-shelf { width: 1000px; top: 22px; }
-  .hero-key { right: 36px; bottom: 50px; }
   .hero-actions { gap: 30px; }
   .hero-actions .button { padding: 14px 22px; gap: 28px; }
   .hero-actions .text-link { font-size: 13px; gap: 14px; }
@@ -243,13 +219,6 @@ dialog > img { max-width: 100%; max-height: calc(92dvh - 60px); object-fit: cont
   .hero-actions { margin-top: 27px; gap: 24px; }
   .hero-actions .button { font-size: 12px; padding: 13px 17px; gap: 23px; }
   .hero-actions .text-link { font-size: 11px; gap: 8px; }
-  .hero-art { height: 340px; border-radius: 21px; }
-  .hero-shelf { width: 730px; top: 8px; }
-  .hero-preview { width: 340px; max-width: 82%; left: 9%; top: 123px; border-width: 3px; border-radius: 6px; }
-  .hero-key { right: 12px; bottom: 39px; padding: 9px 10px 11px; border-radius: 9px; }
-  .hero-key > span { font-size: 8px; margin-bottom: 6px; }
-  .hero-key kbd { font-size: 9px; padding: 2px 4px; border-bottom-width: 2px; }
-  .hero-key > div { gap: 5px; }
   .essentials { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 8px; font-size: 10px; padding-block: 20px; }
   .essentials > a { margin-left: 0; }
   .section-space { padding-block: 64px; }
@@ -321,5 +290,4 @@ dialog > img { max-width: 100%; max-height: calc(92dvh - 60px); object-fit: cont
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .motion-ready .reveal { opacity: 1; transform: none; }
-  .hero-art:hover .hero-preview { transform: rotate(-5deg); }
 }
