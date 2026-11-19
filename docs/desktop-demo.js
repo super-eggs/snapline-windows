@@ -5,14 +5,18 @@
   const find = selector => demo.querySelector(selector);
   const button = action => find(`[data-action="${action}"]`);
   const desktop = find('.demo-desktop');
+  const note = find('.demo-source');
   const source = find('.demo-source-image img');
   const capture = find('.demo-capture');
   const selection = find('.demo-selection');
   const captureActions = find('.demo-capture-actions');
   const shelf = find('.demo-shelf');
   const shots = find('.demo-shots');
+  const rope = find('.demo-rope');
   const editor = find('.demo-editor');
+  const editorTools = find('.demo-editor-tools');
   const editorCanvas = editor.querySelector('canvas');
+  const editorZoom = find('.demo-zoom');
   const pin = find('.demo-pin');
   const pinCanvas = pin.querySelector('canvas');
   const pinHandle = find('.demo-pin-handle');
@@ -26,6 +30,7 @@
   let samples, images, selected, editing, crop, pinX, pinY, gesture;
   let zoom = 1;
   let tool = 'pen';
+  let ink = '#ff4500';
   let history = [];
   let tourTimer, tourSteps, highlighted, autoObserver;
 
@@ -47,6 +52,45 @@
   function showShelf(show) {
     shelf.hidden = !show;
     button('shelf').setAttribute('aria-pressed', String(show));
+    if (show) drawRope();
+  }
+
+  function showNote(show) {
+    note.hidden = !show;
+    button('note').setAttribute('aria-pressed', String(show));
+  }
+
+  function ropeSag() {
+    return Math.min(28, desktop.clientWidth * .055);
+  }
+
+  function positionShots() {
+    const rail = shots.getBoundingClientRect();
+    if (!rail.width) return;
+    for (const item of shots.children) {
+      const x = item.getBoundingClientRect().left - rail.left + item.offsetWidth / 2;
+      const t = bounds(x / rail.width, 0, 1);
+      item.style.transform = `translateY(${4 * ropeSag() * t * (1 - t) - 32}px)`;
+    }
+  }
+
+  function drawRope() {
+    if (shelf.hidden || !rope.clientWidth) return;
+    const width = rope.clientWidth;
+    const ratio = window.devicePixelRatio;
+    rope.width = Math.round(width * ratio);
+    rope.height = Math.round(36 * ratio);
+    const ctx = rope.getContext('2d');
+    ctx.scale(ratio, ratio);
+    for (const [color, stroke, y] of [['#998363', 3.4, 4], ['#c9b28c', 2.8, 4], ['#ecdcbd', 1, 3.35]]) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.quadraticCurveTo(width / 2, y + ropeSag() * 2, width, y);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = stroke;
+      ctx.stroke();
+    }
+    positionShots();
   }
 
   function selectImage(image) {
@@ -62,9 +106,10 @@
       item.title = image.name;
       item.setAttribute('aria-label', image.name);
       const thumb = document.createElement('canvas');
-      const scale = Math.min(144 / image.canvas.width, 88 / image.canvas.height, 1);
+      const scale = Math.min(180 / image.canvas.width, 120 / image.canvas.height, 1);
       thumb.width = Math.max(1, Math.round(image.canvas.width * scale));
       thumb.height = Math.max(1, Math.round(image.canvas.height * scale));
+      item.style.setProperty('--thumb-width', `clamp(${Math.max(32, thumb.width * .5)}px, ${thumb.width / 12}vw, ${thumb.width}px)`);
       thumb.getContext('2d').drawImage(image.canvas, 0, 0, thumb.width, thumb.height);
       thumb.setAttribute('aria-hidden', 'true');
       item.append(thumb);
@@ -77,18 +122,28 @@
       return item;
     }));
     selectImage(selected);
+    if (!shelf.hidden && shots.clientWidth) positionShots();
   }
 
   function drawCrop(rect) {
     crop = rect;
-    selection.hidden = !rect;
-    button('collect').disabled = !rect || rect.w < 8 || rect.h < 8;
-    if (!rect) return;
-    const full = whole();
-    selection.style.left = `${100 * rect.x / full.w}%`;
-    selection.style.top = `${100 * rect.y / full.h}%`;
-    selection.style.width = `${100 * rect.w / full.w}%`;
-    selection.style.height = `${100 * rect.h / full.h}%`;
+    const valid = rect && rect.w >= 8 && rect.h >= 8;
+    selection.hidden = !valid;
+    button('collect').disabled = button('pin-crop').disabled = !valid;
+    if (capture.hidden) return;
+    const frame = capture.getBoundingClientRect();
+    const img = source.getBoundingClientRect();
+    const area = rect || whole();
+    const left = img.left - frame.left + img.width * area.x / source.naturalWidth;
+    const top = img.top - frame.top + img.height * area.y / source.naturalHeight;
+    const width = img.width * area.w / source.naturalWidth;
+    const height = img.height * area.h / source.naturalHeight;
+    Object.assign(selection.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+    find('.demo-crop-size').textContent = valid ? `${area.w} × ${area.h}` : '';
+    const toolsWidth = captureActions.offsetWidth;
+    const toolsHeight = captureActions.offsetHeight;
+    captureActions.style.left = `${bounds(left + width - toolsWidth, 6, frame.width - toolsWidth - 6)}px`;
+    captureActions.style.top = `${bounds(top + height + 7, 6, frame.height - toolsHeight - 6)}px`;
   }
 
   function endCapture() {
@@ -100,9 +155,10 @@
   function startCapture() {
     closeEditor();
     pin.hidden = true;
-    drawCrop(null);
+    showNote(true);
     capture.hidden = captureActions.hidden = false;
-    say('拖动鼠标或手指框选，也可以选择整张示例图片。');
+    drawCrop(null);
+    say('在示例笔记上拖动框选，也可用工具栏选择整张。');
   }
 
   function collect() {
@@ -126,11 +182,25 @@
     editorCanvas.style.width = `${Math.max(1, Math.floor(editorCanvas.width * fit * zoom))}px`;
     button('zoom-out').disabled = zoom <= .55;
     button('zoom-in').disabled = zoom >= 2.5;
+    editorZoom.value = Math.round(zoom * 100);
+    find('.demo-zoom-level').textContent = `${Math.round(fit * zoom * 100)}%`;
+    find('.demo-editor-info').textContent = `PNG · ${editorCanvas.width} × ${editorCanvas.height}`;
   }
 
   function setTool(value) {
     tool = value;
     for (const item of editor.querySelectorAll('[data-tool]')) item.setAttribute('aria-pressed', String(item.dataset.tool === tool));
+  }
+
+  function setInk(color) {
+    ink = color;
+    for (const item of editorTools.querySelectorAll('[data-ink]')) item.setAttribute('aria-pressed', String(item.dataset.ink === color));
+  }
+
+  function showEditorTools(show) {
+    editorTools.hidden = !show;
+    button('annotate').setAttribute('aria-expanded', String(show));
+    setZoom(zoom);
   }
 
   function openEditor(image) {
@@ -140,15 +210,17 @@
     editing = image;
     selectImage(image);
     history = [];
+    zoom = 1;
     setTool('pen');
+    setInk('#ff4500');
     editorCanvas.width = image.canvas.width;
     editorCanvas.height = image.canvas.height;
     editorCanvas.getContext('2d').drawImage(image.canvas, 0, 0);
-    find('.demo-editor-name').textContent = image.name;
+    find('.demo-editor-name').textContent = `${image.name}.png`;
     editor.hidden = false;
+    showEditorTools(false);
     button('undo').disabled = true;
-    setZoom(1);
-    say('在图片上拖动即可标注。也可以旋转、放大或贴到桌面。');
+    say('点击预览顶部的画笔图标展开标注工具。');
   }
 
   function closeEditor() {
@@ -190,24 +262,25 @@
     say('已撤销上一步。');
   }
 
-  function rotate() {
+  function rotate(direction) {
     remember(snapshot());
     const previous = canvasCopy(editorCanvas);
     editorCanvas.width = previous.height;
     editorCanvas.height = previous.width;
     const ctx = editorCanvas.getContext('2d');
-    ctx.translate(editorCanvas.width, 0);
-    ctx.rotate(Math.PI / 2);
+    if (direction > 0) ctx.translate(editorCanvas.width, 0);
+    else ctx.translate(0, editorCanvas.height);
+    ctx.rotate(direction * Math.PI / 2);
     ctx.drawImage(previous, 0, 0);
     ctx.resetTransform();
     setZoom(zoom);
-    say('已顺时针旋转 90°。');
+    say(`已向${direction > 0 ? '右' : '左'}旋转 90°。`);
   }
 
   function mark(from, to, kind) {
     const ctx = editorCanvas.getContext('2d');
     const weight = Math.max(2, Math.min(editorCanvas.width, editorCanvas.height) / 65);
-    ctx.strokeStyle = '#275ddf';
+    ctx.strokeStyle = ink;
     ctx.lineWidth = weight;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -227,7 +300,7 @@
 
   function movePin(x, y) {
     pinX = bounds(x, 0, Math.max(0, desktop.clientWidth - pin.offsetWidth));
-    pinY = bounds(y, 0, Math.max(0, desktop.clientHeight - pin.offsetHeight));
+    pinY = bounds(y, 0, Math.max(0, desktop.clientHeight - find('.demo-taskbar').offsetHeight - pin.offsetHeight));
     pin.style.left = `${pinX}px`;
     pin.style.top = `${pinY}px`;
   }
@@ -238,17 +311,16 @@
     movePin(pinX, pinY);
   }
 
-  function showPin() {
-    pinCanvas.width = editorCanvas.width;
-    pinCanvas.height = editorCanvas.height;
-    pinCanvas.getContext('2d').drawImage(editorCanvas, 0, 0);
-    closeEditor();
+  function showPin(image) {
+    pinCanvas.width = image.width;
+    pinCanvas.height = image.height;
+    pinCanvas.getContext('2d').drawImage(image, 0, 0);
     size.value = opacity.value = '100';
     pin.hidden = false;
-    pinX = desktop.clientWidth - 270;
-    pinY = Math.min(170, desktop.clientHeight - pin.offsetHeight - 18);
+    pinX = desktop.clientWidth * .7;
+    pinY = desktop.clientHeight * .39;
     adjustPin();
-    say('已贴到示例桌面。拖动贴图标题，或用滑块调整大小和透明度。');
+    say('拖住图片直接移动。滚轮缩放，Ctrl+滚轮调节透明度，双击关闭。');
   }
 
   function point(event, surface, width, height) {
@@ -262,7 +334,9 @@
   function track(surface, kind, start, move, finish) {
     surface.addEventListener('pointerdown', event => {
       if (event.button !== 0 || gesture) return;
-      gesture = { kind, pointerId: event.pointerId, ...start(event) };
+      const drag = start(event);
+      if (!drag) return;
+      gesture = { ...drag, kind, pointerId: event.pointerId };
       surface.setPointerCapture(event.pointerId);
     });
     const active = event => gesture?.kind === kind && gesture.pointerId === event.pointerId;
@@ -280,21 +354,35 @@
     });
   }
 
-  const capturePoint = event => point(event, capture, source.naturalWidth, source.naturalHeight);
+  const capturePoint = event => point(event, source, source.naturalWidth, source.naturalHeight);
   track(capture, 'crop', event => {
+    const before = crop;
+    const edge = event.target.dataset.edge;
+    if (edge) return { before, edge };
     const start = capturePoint(event);
     drawCrop({ ...start, w: 0, h: 0 });
-    return { start };
-  }, (event, { start }) => {
+    return { start, before };
+  }, (event, { start, edge, before }) => {
     const end = capturePoint(event);
+    if (edge) {
+      const right = before.x + before.w;
+      const bottom = before.y + before.h;
+      const x = edge.includes('w') ? Math.min(end.x, right - 8) : before.x;
+      const y = edge.includes('n') ? Math.min(end.y, bottom - 8) : before.y;
+      const w = (edge.includes('e') ? Math.max(end.x, x + 8) : right) - x;
+      const h = (edge.includes('s') ? Math.max(end.y, y + 8) : bottom) - y;
+      drawCrop({ x, y, w, h });
+      return;
+    }
     drawCrop({ x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y) });
-  }, (_, canceled) => {
-    if (canceled) drawCrop(null);
-    else if (!button('collect').disabled) say(`已框选 ${crop.w} × ${crop.h} 像素。点击「收进晾衣绳」。`);
+  }, ({ before }, canceled) => {
+    if (canceled) drawCrop(before);
+    else if (!button('collect').disabled) say(`已框选 ${crop.w} × ${crop.h} 像素。点击工具栏上的对勾完成截图。`);
   });
 
   const editorPoint = event => point(event, editorCanvas, editorCanvas.width, editorCanvas.height);
   track(editorCanvas, 'mark', event => {
+    if (editorTools.hidden) return null;
     const start = editorPoint(event);
     return { start, previous: start, before: snapshot(), tool, changed: false };
   }, (event, drag) => {
@@ -314,6 +402,7 @@
 
   track(pinHandle, 'pin', event => ({ x: pinX - event.clientX, y: pinY - event.clientY }),
     (event, drag) => movePin(drag.x + event.clientX, drag.y + event.clientY), () => {});
+  pinHandle.addEventListener('dblclick', closePin);
   pinHandle.addEventListener('keydown', event => {
     const directions = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
     if (!Object.hasOwn(directions, event.key)) return;
@@ -323,6 +412,8 @@
   });
   size.addEventListener('input', adjustPin);
   opacity.addEventListener('input', adjustPin);
+  editorZoom.addEventListener('input', () => setZoom(Number(editorZoom.value) / 100));
+  shots.addEventListener('scroll', positionShots);
   pin.addEventListener('wheel', event => {
     if (event.target.matches('input')) return;
     event.preventDefault();
@@ -355,12 +446,13 @@
       [button('open'), collect],
       [editor, () => openEditor(selected)],
       [editorCanvas, () => {
+        showEditorTools(true);
         const { width, height } = editorCanvas;
         remember(snapshot());
         mark({ x: width * .23, y: height * .22 }, { x: width * .6, y: height * .5 }, 'arrow');
         say('用箭头标出重点。');
       }],
-      [pin, showPin],
+      [pin, () => pinPreview(false)],
     ];
     const next = () => {
       highlighted?.classList.remove('demo-tour-focus');
@@ -385,10 +477,12 @@
     endCapture();
     images = samples.map(image => ({ ...image }));
     selectImage(images[0]);
+    showNote(true);
     showShelf(true);
     renderShots();
     shots.scrollLeft = 0;
-    say('点击「截图」，框选一块示例图片。');
+    openEditor(selected);
+    say('点击「截图」框选示例笔记，或打开预览里的标注工具。');
   }
 
   function cancelCapture() {
@@ -402,8 +496,16 @@
     say('预览已关闭，标注已保留在演示图片上。');
   }
 
-  function pinPreview() {
-    showPin();
+  function pinPreview(focus = true) {
+    showPin(editorCanvas);
+    closeEditor();
+    if (focus) pinHandle.focus({ preventScroll: true });
+  }
+
+  function pinCrop() {
+    const { x, y, w, h } = crop;
+    showPin(canvasCopy(source, x, y, w, h));
+    endCapture();
     pinHandle.focus({ preventScroll: true });
   }
 
@@ -423,11 +525,25 @@
       showShelf(shelf.hidden);
       say(shelf.hidden ? '晾衣绳已收起。' : '晾衣绳已展开。');
     },
+    collapse: () => {
+      showShelf(false);
+      say('晾衣绳已收起。点击右下角的 Snapline 图标可再次展开。');
+      button('shelf').focus({ preventScroll: true });
+    },
+    note: () => {
+      if (!capture.hidden) cancelCapture();
+      showNote(note.hidden);
+    },
+    'close-source': () => {
+      showNote(false);
+      button('note').focus({ preventScroll: true });
+    },
     tour: () => tourSteps ? stopTour() : playTour(),
     reset,
     whole: () => {
       drawCrop(whole());
-      say('已选择整张示例图片。点击「收进晾衣绳」。');
+      say('已选择整张示例图片。点击工具栏上的对勾完成截图。');
+      button('collect').focus({ preventScroll: true });
     },
     cancel: () => {
       cancelCapture();
@@ -439,14 +555,25 @@
     },
     open: () => {
       openEditor(selected);
-      find('[data-tool="pen"]').focus({ preventScroll: true });
+      button('annotate').focus({ preventScroll: true });
     },
     'close-editor': closePreview,
+    annotate: () => {
+      showEditorTools(editorTools.hidden);
+      if (!editorTools.hidden) say('选择画笔或箭头后，在图片上拖动标注。');
+    },
+    save: () => {
+      closePreview();
+      say('已保存到演示副本。');
+    },
     undo,
-    rotate,
+    rotate: () => rotate(1),
+    'rotate-left': () => rotate(-1),
+    fit: () => setZoom(1),
     'zoom-out': () => setZoom(zoom / 1.22),
     'zoom-in': () => setZoom(zoom * 1.22),
     pin: pinPreview,
+    'pin-crop': pinCrop,
     'close-pin': closePin,
   };
   demo.addEventListener('pointerdown', event => {
@@ -459,6 +586,7 @@
     if (item.dataset.action !== 'tour') stopTour();
     if (item.dataset.action) actions[item.dataset.action]();
     if (item.dataset.tool) setTool(item.dataset.tool);
+    if (item.dataset.ink) setInk(item.dataset.ink);
   });
   demo.addEventListener('keydown', event => {
     const togglesTour = event.target === button('tour') && (event.key === 'Enter' || event.key === ' ');
@@ -470,6 +598,12 @@
       else return;
     } else if (event.key === 'F1') {
       actions.capture();
+    } else if (event.key === 'Enter' && event.target.tagName !== 'BUTTON' && !capture.hidden && !button('collect').disabled) {
+      actions.collect();
+    } else if (event.key.toLowerCase() === 'a' && event.ctrlKey && !capture.hidden) {
+      actions.whole();
+    } else if (event.key.toLowerCase() === 't' && event.ctrlKey && !event.altKey && !capture.hidden && !button('pin-crop').disabled) {
+      pinCrop();
     } else if (event.key.toLowerCase() === 't' && event.ctrlKey && event.altKey) {
       actions.shelf();
     } else if (event.key.toLowerCase() === 'z' && event.ctrlKey && editing) {
@@ -478,22 +612,28 @@
     event.preventDefault();
   });
   new ResizeObserver(() => {
+    drawRope();
+    if (!capture.hidden) drawCrop(crop);
     if (!editor.hidden) setZoom(zoom);
     if (!pin.hidden) movePin(pinX, pinY);
   }).observe(desktop);
 
   async function init() {
-    const [, design, note] = await Promise.all([
+    const [, design, weekend] = await Promise.all([
       source.decode(),
       loadImage('images/02-image-preview.png'),
       loadImage('images/05-capture-annotation.png'),
     ]);
     samples = [
       { name: '页面设计评审', canvas: canvasCopy(design, 100, 103, 900, 560) },
-      { name: '周末灵感', canvas: canvasCopy(note) },
+      { name: '周末灵感', canvas: canvasCopy(weekend) },
       { name: '一个好点子', canvas: canvasCopy(source) },
     ];
     reset();
+    const backdrop = find('.demo-document canvas');
+    backdrop.width = weekend.naturalWidth;
+    backdrop.height = weekend.naturalHeight;
+    backdrop.getContext('2d').drawImage(weekend, 0, 0);
     demo.hidden = false;
     document.querySelector('#desktop-fallback').hidden = true;
     if (!reducedMotion.matches && matchMedia('(pointer: fine)').matches) {

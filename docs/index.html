@@ -38,60 +38,95 @@
     <section class="container desktop-experience" id="try" aria-label="Snapline 网页演示">
       <div id="desktop-demo" class="desktop-demo" role="region" aria-label="可操作的示例桌面" hidden>
         <div class="desktop-toolbar">
-          <span class="desktop-brand"><img src="images/app.ico" alt="" width="20" height="20">示例桌面</span>
+          <p class="demo-status" role="status">点击「截图」，框选示例笔记里的内容。</p>
           <div class="desktop-actions">
-            <button type="button" data-action="capture" class="demo-primary">截图 <kbd>F1</kbd></button>
-            <button type="button" data-action="shelf" aria-pressed="true">晾衣绳</button>
+            <button type="button" data-action="capture" class="demo-start">截图 <kbd>F1</kbd></button>
             <button type="button" data-action="tour" aria-pressed="false">观看演示</button>
             <button type="button" data-action="reset">重置</button>
           </div>
         </div>
         <div class="demo-desktop">
           <div class="demo-shelf" aria-label="晾衣绳">
-            <div class="demo-rope" aria-hidden="true"></div>
+            <canvas class="demo-rope" aria-hidden="true"></canvas>
             <div class="demo-shots" aria-label="最近截图"></div>
-            <button type="button" class="demo-open" data-action="open">预览选中图片</button>
+            <div class="demo-shelf-tools">
+              <button type="button" data-action="open" aria-label="预览选中图片" title="预览选中图片"><span class="demo-icon icon-open"></span></button>
+              <button type="button" data-action="collapse" aria-label="收起晾衣绳" title="收起晾衣绳"><span class="demo-icon icon-collapse"></span></button>
+            </div>
+          </div>
+          <div class="demo-document" aria-hidden="true">
+            <div class="demo-window-title"><span class="demo-file-icon"></span>周末灵感.png</div>
+            <canvas></canvas>
           </div>
           <div class="demo-source">
-            <div class="demo-window-title">灵感笔记 <span>示例图片</span></div>
-            <div class="demo-source-image">
-              <img src="images/06-pinned-image.png" width="640" height="400" alt="示例笔记：一个好点子" draggable="false">
-              <div class="demo-capture" aria-label="拖动框选示例图片" hidden>
-                <div class="demo-selection" hidden></div>
-              </div>
+            <div class="demo-window-title">
+              <span class="demo-file-icon" aria-hidden="true"></span>灵感笔记.png
+              <button type="button" data-action="close-source" aria-label="关闭示例笔记" title="关闭示例笔记"><span class="demo-icon icon-close"></span></button>
             </div>
-            <div class="demo-capture-actions" hidden>
-              <button type="button" data-action="whole">选择整张</button>
-              <button type="button" data-action="cancel">取消</button>
-              <button type="button" data-action="collect" class="demo-primary" disabled>收进晾衣绳</button>
+            <div class="demo-source-image"><img src="images/06-pinned-image.png" width="640" height="400" alt="示例笔记：一个好点子" draggable="false"></div>
+          </div>
+          <div class="demo-capture" tabindex="-1" aria-label="拖动框选示例笔记里的内容" hidden>
+            <div class="demo-selection" hidden>
+              <span class="demo-crop-size"></span>
+              <span data-edge="nw"></span><span data-edge="n"></span><span data-edge="ne"></span>
+              <span data-edge="w"></span><span data-edge="e"></span>
+              <span data-edge="sw"></span><span data-edge="s"></span><span data-edge="se"></span>
             </div>
           </div>
+          <div class="demo-capture-actions" aria-label="截图工具栏" hidden>
+            <button type="button" data-action="whole" aria-label="选择整张示例图" title="选择整张示例图"><span class="demo-icon icon-reselect"></span></button>
+            <button type="button" data-action="pin-crop" aria-label="贴到屏幕" title="贴到屏幕（Ctrl+T）" disabled><span class="demo-icon icon-pin"></span></button>
+            <button type="button" data-action="cancel" aria-label="取消截图" title="取消（Esc）"><span class="demo-icon icon-close"></span></button>
+            <button type="button" data-action="collect" aria-label="完成截图并收进晾衣绳" title="完成截图（Enter）" class="demo-native-highlight" disabled><span class="demo-icon icon-check"></span></button>
+          </div>
           <section class="demo-editor" aria-label="图片预览与标注" hidden>
-            <div class="demo-window-title"><span class="demo-editor-name">图片预览</span><button type="button" data-action="close-editor" aria-label="关闭预览">×</button></div>
-            <div class="demo-editor-tools" aria-label="图片工具">
-              <button type="button" data-tool="pen" aria-pressed="true">画笔</button>
-              <button type="button" data-tool="arrow" aria-pressed="false">箭头</button>
-              <button type="button" data-action="undo" disabled>撤销</button>
-              <button type="button" data-action="rotate">旋转</button>
-              <button type="button" data-action="zoom-out" aria-label="缩小预览">−</button>
-              <button type="button" data-action="zoom-in" aria-label="放大预览">+</button>
-              <button type="button" data-action="pin" class="demo-primary">贴到桌面</button>
+            <div class="demo-window-title"><img src="images/app.ico" width="15" height="15" alt="">截图预览<button type="button" data-action="close-editor" aria-label="关闭预览" title="关闭预览"><span class="demo-icon icon-close"></span></button></div>
+            <div class="demo-editor-command">
+              <button type="button" data-action="annotate" aria-label="标注工具" title="展开或收起标注工具" aria-expanded="false" aria-controls="demo-annotations"><span class="demo-icon icon-edit"></span></button>
+              <button type="button" data-action="rotate-left" aria-label="向左旋转" title="向左旋转 90°"><span class="demo-icon icon-rotate-left"></span></button>
+              <button type="button" data-action="rotate" aria-label="向右旋转" title="向右旋转 90°"><span class="demo-icon icon-rotate-right"></span></button>
+              <span class="demo-editor-name"></span>
+              <button type="button" data-action="pin" aria-label="贴到屏幕" title="将图片与标注贴到屏幕"><span class="demo-icon icon-pin"></span></button>
+              <button type="button" data-action="save" class="demo-native-highlight" aria-label="保存到演示副本" title="保存到演示副本"><span class="demo-icon icon-save"></span></button>
+            </div>
+            <div class="demo-editor-tools" id="demo-annotations" aria-label="标注工具" hidden>
+              <button type="button" data-tool="pen" aria-label="画笔" title="画笔" aria-pressed="true"><span class="demo-icon icon-pen"></span></button>
+              <button type="button" data-tool="arrow" aria-label="箭头" title="箭头" aria-pressed="false"><span class="demo-icon icon-arrow"></span></button>
+              <button type="button" data-action="undo" aria-label="撤销" title="撤销（Ctrl+Z）" disabled><span class="demo-icon icon-undo"></span></button>
+              <button type="button" class="demo-ink" data-ink="#ff4500" aria-label="橙红色" title="橙红色" aria-pressed="true"></button>
+              <button type="button" class="demo-ink" data-ink="#ffd700" aria-label="金黄色" title="金黄色" aria-pressed="false"></button>
+              <button type="button" class="demo-ink" data-ink="#1e90ff" aria-label="亮蓝色" title="亮蓝色" aria-pressed="false"></button>
             </div>
             <div class="demo-editor-image"><canvas tabindex="0" aria-label="在图片上拖动以标注，按 Ctrl+Z 撤销"></canvas></div>
+            <div class="demo-editor-footer">
+              <span class="demo-editor-info"></span>
+              <button type="button" data-action="fit" aria-label="适应窗口" title="适应窗口"><span class="demo-icon icon-open"></span></button>
+              <output class="demo-zoom-level"></output>
+              <button type="button" data-action="zoom-out" aria-label="缩小预览" title="缩小预览"><span class="demo-icon icon-minus"></span></button>
+              <input type="range" class="demo-zoom" aria-label="预览缩放" min="55" max="250" value="100">
+              <button type="button" data-action="zoom-in" aria-label="放大预览" title="放大预览"><span class="demo-icon icon-plus"></span></button>
+            </div>
           </section>
           <section class="demo-pin" aria-label="桌面贴图" hidden>
-            <div class="demo-window-title"><button type="button" class="demo-pin-handle" aria-label="拖动贴图，或用方向键移动">拖动贴图</button><button type="button" data-action="close-pin" aria-label="关闭贴图">×</button></div>
-            <canvas role="img" aria-label="已贴到示例桌面的图片"></canvas>
+            <button type="button" class="demo-pin-handle" aria-label="拖动贴图，或用方向键移动。双击关闭。"><canvas></canvas></button>
             <div class="demo-pin-tools">
               <label>大小 <input type="range" data-adjust="size" min="65" max="130" value="100"></label>
               <label>透明度 <input type="range" data-adjust="opacity" min="25" max="100" value="100"></label>
+              <button type="button" data-action="close-pin" aria-label="关闭贴图" title="关闭贴图"><span class="demo-icon icon-close"></span></button>
             </div>
           </section>
+          <div class="demo-taskbar" aria-label="示例桌面任务栏">
+            <div class="demo-taskbar-apps">
+              <span class="demo-launcher" aria-hidden="true"></span>
+              <button type="button" data-action="note" aria-label="显示或隐藏示例笔记" title="灵感笔记.png" aria-pressed="true"><span class="demo-file-icon" aria-hidden="true"></span></button>
+            </div>
+            <div class="demo-tray">
+              <button type="button" data-action="shelf" aria-label="展开或收起截图晾衣绳" title="截图晾衣绳（Ctrl+Alt+T）" aria-pressed="true"><img src="images/app.ico" width="22" height="22" alt=""></button>
+              <span class="demo-network" aria-hidden="true"></span><span class="demo-battery" aria-hidden="true"></span><span aria-hidden="true">10:24</span>
+            </div>
+          </div>
         </div>
-        <div class="desktop-status">
-          <p role="status" class="demo-status">点击「截图」，框选一块示例图片。</p>
-          <p>网页演示 · 使用内置示例图片</p>
-        </div>
+        <p class="desktop-caption">网页演示使用内置图片。点右下角托盘里的 Snapline 图标可展开或收起晾衣绳。</p>
       </div>
       <div id="desktop-fallback" class="desktop-fallback">
         <img src="images/01-desktop-shelf.png" width="1440" height="246" alt="截图晾衣绳实机界面">
