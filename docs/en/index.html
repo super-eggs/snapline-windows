@@ -27,7 +27,7 @@
   <header class="site-header">
     <div class="container navigation">
       <a class="brand" href="#" aria-label="Snapline home"><img src="../images/app.ico" width="38" height="38" alt=""><span>Snapline<span class="brand-cn">FOR WINDOWS</span></span></a>
-      <nav aria-label="Main navigation"><a href="#features">Features</a><a href="#workflow">Shortcuts</a><a href="#questions">FAQ</a></nav>
+      <nav aria-label="Main navigation"><a href="#features">Features</a><a href="#workflow">Shortcuts</a><a class="nav-changelog" href="#changelog">Changelog</a><a href="#questions">FAQ</a></nav>
       <div class="nav-actions">
         <a class="language-switch" data-language-switch href="../index.html" hreflang="zh-CN" lang="zh-CN">中文</a>
         <a class="nav-download" href="#download">Download <span aria-hidden="true">↗</span></a>
@@ -213,12 +213,49 @@
         <details><summary>Does the download include every feature shown here?</summary><div><p>This page demos some features from the development version. Check the release notes before downloading, or build the development version from source.</p></div></details>
       </div>
     </section>
+    <section class="changelog-section container" id="changelog" aria-labelledby="changelog-title">
+      <div class="changelog-heading">
+        <h2 id="changelog-title">Changelog</h2>
+        <p>Right-click the Snapline tray icon to see the version you’re running.</p>
+      </div>
+      <ol class="changelog-entries" role="list">
+        <li class="changelog-entry">
+          <div class="changelog-version"><h3>v1.0.2</h3><time datetime="2026-11-20">Nov 20, 2026</time><span class="changelog-latest">Latest release</span></div>
+          <div class="changelog-content">
+            <ul>
+              <li>Snapline retries copying when the clipboard is busy. If copying still fails, it confirms the screenshot was saved so you can copy it from the shelf.</li>
+              <li>The tray menu shows the version you’re running.</li>
+              <li>Installer and portable ZIP filenames include the version number.</li>
+            </ul>
+            <div class="changelog-links">
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Setup-1.0.2-x64.exe">Download installer <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Portable-1.0.2-x64.zip">Download portable ZIP <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.2">v1.0.2 release <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </li>
+        <li class="changelog-entry">
+          <div class="changelog-version"><h3>v1.0.1</h3><time datetime="2026-10-12">Oct 12, 2026</time></div>
+          <div class="changelog-content">
+            <p>Added the Snapline clothesline icon to the app, preview window, system tray, shortcuts, and installer.</p>
+            <div class="changelog-links"><a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.1">v1.0.1 release <span aria-hidden="true">↗</span></a></div>
+          </div>
+        </li>
+        <li class="changelog-entry">
+          <div class="changelog-version"><h3>v1.0.0</h3><time datetime="2026-10-12">Oct 12, 2026</time></div>
+          <div class="changelog-content">
+            <p>The first Windows release included clipboard collection, shelf browsing, click-to-copy, image previews, and pen annotations.</p>
+            <div class="changelog-links"><a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.0">v1.0.0 release <span aria-hidden="true">↗</span></a></div>
+          </div>
+        </li>
+      </ol>
+    </section>
     <section class="download-section container" id="download" aria-labelledby="download-title">
       <div class="download-card reveal">
         <div class="download-copy"><img src="../images/app.ico" width="64" height="64" alt="" loading="lazy"><h2 id="download-title">Give your screenshots<br>a place to land.</h2><p>Snapline for Windows, by <span lang="zh-CN">分辨率网络</span>.</p></div>
         <div class="download-options">
           <a class="button light-button" href="https://github.com/super-eggs/snapline-windows/releases/latest">Download installer or portable ZIP <span aria-hidden="true">↓</span></a>
-          <a class="portable-link" href="https://github.com/super-eggs/snapline-windows/releases">Browse all releases <span aria-hidden="true">↗</span></a>
+          <a class="portable-link" href="#changelog">View changelog <span aria-hidden="true">↑</span></a>
           <p class="download-system">Windows 10 / 11 x64 · .NET Framework 4.8</p>
           <p class="release-note">The demo includes development features. See the <a href="https://github.com/super-eggs/snapline-windows/releases/latest" target="_blank" rel="noopener noreferrer">release notes</a> for what's in the current download.</p>
           <a class="source-link" href="https://github.com/super-eggs/snapline-windows" target="_blank" rel="noopener noreferrer">View source and build instructions <span aria-hidden="true">↗</span></a>

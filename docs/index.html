@@ -27,7 +27,7 @@
   <header class="site-header">
     <div class="container navigation">
       <a class="brand" href="#" aria-label="Snapline 首页"><img src="images/app.ico" width="38" height="38" alt=""><span>Snapline<span class="brand-cn">截图晾衣绳</span></span></a>
-      <nav aria-label="主导航"><a href="#features">功能一览</a><a href="#workflow">使用方式</a><a href="#questions">常见问题</a></nav>
+      <nav aria-label="主导航"><a href="#features">功能一览</a><a href="#workflow">使用方式</a><a class="nav-changelog" href="#changelog">更新日志</a><a href="#questions">常见问题</a></nav>
       <div class="nav-actions">
         <a class="language-switch" data-language-switch href="en/index.html" hreflang="en" lang="en">English</a>
         <a class="nav-download" href="#download">获取 Windows 版 <span aria-hidden="true">↗</span></a>
@@ -213,12 +213,49 @@
         <details><summary>下载包包含这里介绍的全部功能吗？</summary><div><p>本页演示开发版的部分功能。下载前可查看对应版本说明，开发版也可从源码构建。</p></div></details>
       </div>
     </section>
+    <section class="changelog-section container" id="changelog" aria-labelledby="changelog-title">
+      <div class="changelog-heading">
+        <h2 id="changelog-title">更新日志</h2>
+        <p>右键 Snapline 的托盘图标，可查看当前运行版本。</p>
+      </div>
+      <ol class="changelog-entries" role="list">
+        <li class="changelog-entry">
+          <div class="changelog-version"><h3>v1.0.2</h3><time datetime="2026-11-20">2026 年 11 月 20 日</time><span class="changelog-latest">最新版本</span></div>
+          <div class="changelog-content">
+            <ul>
+              <li>截图完成后，剪贴板被占用时会自动重试复制。持续失败时会提示图片已保存，可从晾衣绳重新复制。</li>
+              <li>托盘菜单显示当前运行版本。</li>
+              <li>安装包和免安装版的文件名都带有版本号。</li>
+            </ul>
+            <div class="changelog-links">
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Setup-1.0.2-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Portable-1.0.2-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.2">v1.0.2 发布页 <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </li>
+        <li class="changelog-entry">
+          <div class="changelog-version"><h3>v1.0.1</h3><time datetime="2026-10-12">2026 年 10 月 12 日</time></div>
+          <div class="changelog-content">
+            <p>新增 Snapline 晾衣绳图标，并应用到程序、预览窗口、系统托盘、快捷方式和安装包。</p>
+            <div class="changelog-links"><a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.1">v1.0.1 发布页 <span aria-hidden="true">↗</span></a></div>
+          </div>
+        </li>
+        <li class="changelog-entry">
+          <div class="changelog-version"><h3>v1.0.0</h3><time datetime="2026-10-12">2026 年 10 月 12 日</time></div>
+          <div class="changelog-content">
+            <p>首个 Windows 版本，支持剪贴板图片收集、晾衣绳浏览、单击复制、图片预览和画笔标注。</p>
+            <div class="changelog-links"><a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.0">v1.0.0 发布页 <span aria-hidden="true">↗</span></a></div>
+          </div>
+        </li>
+      </ol>
+    </section>
     <section class="download-section container" id="download" aria-labelledby="download-title">
       <div class="download-card reveal">
         <div class="download-copy"><img src="images/app.ico" width="64" height="64" alt="" loading="lazy"><h2 id="download-title">给截图，<br>一个顺手的位置。</h2><p>截图晾衣绳 Snapline，分辨率网络出品。</p></div>
         <div class="download-options">
           <a class="button light-button" href="https://github.com/super-eggs/snapline-windows/releases/latest">下载安装包或免安装版 <span aria-hidden="true">↓</span></a>
-          <a class="portable-link" href="https://github.com/super-eggs/snapline-windows/releases">查看历史版本 <span aria-hidden="true">↗</span></a>
+          <a class="portable-link" href="#changelog">查看更新日志 <span aria-hidden="true">↑</span></a>
           <p class="download-system">Windows 10 / 11 x64 · .NET Framework 4.8</p>
           <p class="release-note">网页演示涵盖开发版功能。下载包所含功能请以<a href="https://github.com/super-eggs/snapline-windows/releases/latest" target="_blank" rel="noopener noreferrer">版本说明</a>为准。</p>
           <a class="source-link" href="https://github.com/super-eggs/snapline-windows" target="_blank" rel="noopener noreferrer">查看开发版源码与构建说明 <span aria-hidden="true">↗</span></a>
