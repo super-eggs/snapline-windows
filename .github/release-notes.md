@@ -1,9 +1,16 @@
-## 1.0.2 更新
+## 中文更新
 
 - 截图完成时如果剪贴板被占用，自动重试复制。持续失败时提示截图已保存，可从晾衣绳重新复制。
 - 右键系统托盘图标可查看当前运行版本。
 - 安装包和免安装版文件名都带有版本号。
 - 可覆盖安装升级，保留截图与配置。
+
+## English updates
+
+- Snapline retries copying when the clipboard is busy. If copying still fails, the saved screenshot can be copied from the shelf.
+- The system tray menu shows the running version.
+- Installer and portable ZIP filenames include the version number.
+- Installing over an older version preserves screenshots and settings.
 
 ## 下载与安装
 

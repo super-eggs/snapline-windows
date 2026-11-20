@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="../style.css">
   <link rel="stylesheet" href="../desktop-demo.css">
   <script src="../script.js" defer></script>
+  <script src="../changelog.js" defer></script>
   <script src="../capture-tools.js" defer></script>
   <script src="../desktop-snapshot.js" defer></script>
   <script src="../desktop-demo.js" defer></script>
@@ -220,9 +221,9 @@
       </div>
       <ol class="changelog-entries" role="list">
         <li class="changelog-entry">
-          <div class="changelog-version"><h3>v1.0.2</h3><time datetime="2026-11-20">Nov 20, 2026</time><span class="changelog-latest">Latest release</span></div>
+          <div class="changelog-version"><h3>v1.0.2</h3><time datetime="2026-11-20">Nov 20, 2026</time></div>
           <div class="changelog-content">
-            <ul>
+            <ul class="changelog-notes">
               <li>Snapline retries copying when the clipboard is busy. If copying still fails, it confirms the screenshot was saved so you can copy it from the shelf.</li>
               <li>The tray menu shows the version you’re running.</li>
               <li>Installer and portable ZIP filenames include the version number.</li>
@@ -237,14 +238,14 @@
         <li class="changelog-entry">
           <div class="changelog-version"><h3>v1.0.1</h3><time datetime="2026-10-12">Oct 12, 2026</time></div>
           <div class="changelog-content">
-            <p>Added the Snapline clothesline icon to the app, preview window, system tray, shortcuts, and installer.</p>
+            <p class="changelog-notes">Added the Snapline clothesline icon to the app, preview window, system tray, shortcuts, and installer.</p>
             <div class="changelog-links"><a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.1">v1.0.1 release <span aria-hidden="true">↗</span></a></div>
           </div>
         </li>
         <li class="changelog-entry">
           <div class="changelog-version"><h3>v1.0.0</h3><time datetime="2026-10-12">Oct 12, 2026</time></div>
           <div class="changelog-content">
-            <p>The first Windows release included clipboard collection, shelf browsing, click-to-copy, image previews, and pen annotations.</p>
+            <p class="changelog-notes">The first Windows release included clipboard collection, shelf browsing, click-to-copy, image previews, and pen annotations.</p>
             <div class="changelog-links"><a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.0">v1.0.0 release <span aria-hidden="true">↗</span></a></div>
           </div>
         </li>

@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="desktop-demo.css">
   <script src="script.js" defer></script>
+  <script src="changelog.js" defer></script>
   <script src="capture-tools.js" defer></script>
   <script src="desktop-snapshot.js" defer></script>
   <script src="desktop-demo.js" defer></script>
@@ -220,9 +221,9 @@
       </div>
       <ol class="changelog-entries" role="list">
         <li class="changelog-entry">
-          <div class="changelog-version"><h3>v1.0.2</h3><time datetime="2026-11-20">2026 年 11 月 20 日</time><span class="changelog-latest">最新版本</span></div>
+          <div class="changelog-version"><h3>v1.0.2</h3><time datetime="2026-11-20">2026 年 11 月 20 日</time></div>
           <div class="changelog-content">
-            <ul>
+            <ul class="changelog-notes">
               <li>截图完成后，剪贴板被占用时会自动重试复制。持续失败时会提示图片已保存，可从晾衣绳重新复制。</li>
               <li>托盘菜单显示当前运行版本。</li>
               <li>安装包和免安装版的文件名都带有版本号。</li>
@@ -237,14 +238,14 @@
         <li class="changelog-entry">
           <div class="changelog-version"><h3>v1.0.1</h3><time datetime="2026-10-12">2026 年 10 月 12 日</time></div>
           <div class="changelog-content">
-            <p>新增 Snapline 晾衣绳图标，并应用到程序、预览窗口、系统托盘、快捷方式和安装包。</p>
+            <p class="changelog-notes">新增 Snapline 晾衣绳图标，并应用到程序、预览窗口、系统托盘、快捷方式和安装包。</p>
             <div class="changelog-links"><a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.1">v1.0.1 发布页 <span aria-hidden="true">↗</span></a></div>
           </div>
         </li>
         <li class="changelog-entry">
           <div class="changelog-version"><h3>v1.0.0</h3><time datetime="2026-10-12">2026 年 10 月 12 日</time></div>
           <div class="changelog-content">
-            <p>首个 Windows 版本，支持剪贴板图片收集、晾衣绳浏览、单击复制、图片预览和画笔标注。</p>
+            <p class="changelog-notes">首个 Windows 版本，支持剪贴板图片收集、晾衣绳浏览、单击复制、图片预览和画笔标注。</p>
             <div class="changelog-links"><a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.0">v1.0.0 发布页 <span aria-hidden="true">↗</span></a></div>
           </div>
         </li>
