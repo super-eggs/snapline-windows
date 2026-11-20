@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -7,6 +9,23 @@ namespace Snapline
 {
     internal static class ClipboardImages
     {
+        private const int ClipboardCannotOpen = unchecked((int)0x800401D0);
+
+        internal static async Task<bool> TryCopyAsync(Action copy)
+        {
+            const int retries = 2;
+            for (int attempt = 0; ; attempt++)
+            {
+                try { copy(); return true; }
+                catch (ExternalException ex)
+                {
+                    if (ex.ErrorCode != ClipboardCannotOpen || attempt == retries) return false;
+                }
+                catch (UnauthorizedAccessException) { return false; }
+                await Task.Delay(250 * (attempt + 1));
+            }
+        }
+
         internal static BitmapSource Read(Func<string, object> pngData, Func<BitmapSource> bitmapData)
         {
             // PNG carries explicit alpha; prefer it over ambiguous clipboard bitmaps.

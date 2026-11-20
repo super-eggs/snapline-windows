@@ -26,7 +26,7 @@ namespace Snapline
         private InkCanvas ink;
         private AnnotationTools annotations;
         private readonly WrapPanel annotationHost = new WrapPanel();
-        private readonly Func<BitmapSource, Task> completed;
+        private readonly Func<BitmapSource, Task<bool>> saveAndCopy;
         private readonly Action<string> copyColor;
         private readonly Action<BitmapSource> pinImage;
         private readonly PixelLens lens = new PixelLens { Visibility = Visibility.Collapsed };
@@ -48,9 +48,9 @@ namespace Snapline
         private readonly System.Windows.Shapes.Rectangle[] handles = new System.Windows.Shapes.Rectangle[8];
         internal Rect Selection { get { return selection; } }
         internal AnnotationTools Annotations { get { return annotations; } }
-        internal CaptureWindow(ScreenCapture screen, Func<BitmapSource, Task> completed, Action<string> copyColor = null, Action<BitmapSource> pinImage = null)
+        internal CaptureWindow(ScreenCapture screen, Func<BitmapSource, Task<bool>> saveAndCopy, Action<string> copyColor = null, Action<BitmapSource> pinImage = null)
         {
-            this.screen = screen; this.completed = completed;
+            this.screen = screen; this.saveAndCopy = saveAndCopy;
             this.copyColor = copyColor; this.pinImage = pinImage;
             Title = "Snapline 截图"; Icon = AppIcon.WindowImage();
             WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
@@ -448,13 +448,19 @@ namespace Snapline
         {
             if (!selected || finishing) return;
             finishing = true; IsEnabled = false;
-            try { await completed(RenderSelection()); Close(); }
+            try
+            {
+                bool copied = await saveAndCopy(RenderSelection());
+                if (!copied && !closed)
+                    MessageBox.Show(this, "截图已保存到晾衣绳，但复制到剪贴板失败。可在晾衣绳点击这张图重新复制。", "Snapline 截图");
+                if (!closed) Close();
+            }
             catch (Exception ex)
             {
                 if (!(ex is IOException || ex is UnauthorizedAccessException || ex is System.Runtime.InteropServices.ExternalException)) throw;
-                MessageBox.Show(this, "截图未完成保存或复制，请检查磁盘空间、权限或剪贴板占用后重试。", "Snapline 截图");
+                if (!closed) MessageBox.Show(this, "截图未能保存，也未复制。请检查磁盘空间和截图文件夹权限后重试。", "Snapline 截图");
             }
-            finally { finishing = false; IsEnabled = true; }
+            finally { finishing = false; if (!closed) IsEnabled = true; }
         }
         private async void SaveAs()
         {

@@ -12,9 +12,9 @@ $appVersion = ([version]$version).ToString(3)
 & $ISCC "/DAppVersion=$appVersion" (Join-Path $PSScriptRoot 'installer\Snapline.iss')
 if ($LASTEXITCODE -ne 0) { throw '安装包编译失败。' }
 $out = Join-Path $PSScriptRoot 'artifacts\release'
-$portable = Join-Path $out 'Snapline-Portable-x64.zip'
+$portable = Join-Path $out "Snapline-Portable-$appVersion-x64.zip"
 Compress-Archive -LiteralPath @($exe, (Join-Path $PSScriptRoot 'dist\Snapline.exe.config'), (Join-Path $PSScriptRoot 'README.md')) -DestinationPath $portable -Force
-$names = @('Snapline-Setup-x64.exe', 'Snapline-Portable-x64.zip')
+$names = @("Snapline-Setup-$appVersion-x64.exe", (Split-Path -Leaf $portable))
 $checksums = foreach ($name in $names) {
     $hash = Get-FileHash -LiteralPath (Join-Path $out $name) -Algorithm SHA256
     '{0}  {1}' -f $hash.Hash.ToLowerInvariant(), $name

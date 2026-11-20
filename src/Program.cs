@@ -168,13 +168,17 @@ namespace Snapline
                     {
                         if (!shelf.IsVisible) throw new InvalidOperationException("手动展开的窗口在 3.2 秒内自动隐藏");
                         if (store.Items.Count != expectedCaptures || !tray.Visible) throw new InvalidOperationException("启动状态不完整");
-                        bool startupSettingDisabled = false;
+                        string fileVersion = System.Diagnostics.FileVersionInfo.GetVersionInfo(Forms.Application.ExecutablePath).FileVersion;
+                        string expectedVersionLabel = "当前运行版本 v" + new Version(fileVersion).ToString(3);
+                        bool versionShown = false, startupSettingDisabled = false;
                         foreach (Forms.ToolStripItem item in tray.ContextMenuStrip.Items)
                         {
+                            if (item is Forms.ToolStripLabel && item.Text == expectedVersionLabel) versionShown = true;
                             var setting = item as Forms.ToolStripMenuItem;
                             if (setting != null && setting.Text == "开机自启（登录后）")
                                 startupSettingDisabled = !setting.Enabled && !setting.Checked;
                         }
+                        if (!versionShown) throw new InvalidOperationException("托盘菜单显示的版本与程序文件版本不一致");
                         if (!startupSettingDisabled) throw new InvalidOperationException("演示模式必须显示并禁用开机自启设置");
                         if (!smoothStart || shelf.ScrollOffset <= 0 || Math.Abs(shelf.ScrollOffset - shelf.ScrollTarget) > .3)
                             throw new InvalidOperationException("原生横向滚轮消息或实际滚动动画未完成");
@@ -229,7 +233,8 @@ namespace Snapline
                         var render = new RenderTargetBitmap((int)Math.Ceiling(content.ActualWidth), (int)Math.Ceiling(content.ActualHeight), 96, 96, PixelFormats.Pbgra32);
                         render.Render(exportContent); exportShelf.Dispose(); exportShelf.Close();
                         File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(smokeReport), "running-shelf.png"), Store.Encode(render));
-                        report = "PASS startup setting is visible, disabled and unchecked in demo mode\nPASS native desktop capture reads the exact opaque RGB pixels and physical size of an isolated synthetic window patch\nPASS persisted top/normal/bottom layers update native topmost style and bottom remains below an independent normal window after reveal; preview follows live changes\nPASS real preview window opens, fits, zooms and renders a quarter-turn image at original resolution\nPASS native horizontal-wheel message starts smooth movement and real DispatcherTimer animation settles on target\nPASS manual reveal remains visible after 3.2 seconds with real auto-hide timer enabled and initial pointer outside\nPASS native window matches current monitor left edge and complete physical width\nPASS application startup, tray initialization, demo captures, window hide/reveal, annotation window startup, independent WPF layout export\nPASS real clipboard and screenshot directory monitoring disabled in smoke test\n";
+                        report = "PASS tray menu displays " + expectedVersionLabel + "\n"
+                            + "PASS startup setting is visible, disabled and unchecked in demo mode\nPASS native desktop capture reads the exact opaque RGB pixels and physical size of an isolated synthetic window patch\nPASS persisted top/normal/bottom layers update native topmost style and bottom remains below an independent normal window after reveal; preview follows live changes\nPASS real preview window opens, fits, zooms and renders a quarter-turn image at original resolution\nPASS native horizontal-wheel message starts smooth movement and real DispatcherTimer animation settles on target\nPASS manual reveal remains visible after 3.2 seconds with real auto-hide timer enabled and initial pointer outside\nPASS native window matches current monitor left edge and complete physical width\nPASS application startup, tray initialization, demo captures, window hide/reveal, annotation window startup, independent WPF layout export\nPASS real clipboard and screenshot directory monitoring disabled in smoke test\n";
                     }
                     catch (Exception ex) { result = 1; report = "FAIL " + ex; }
                     Directory.CreateDirectory(Path.GetDirectoryName(smokeReport)); File.WriteAllText(smokeReport, report);
@@ -261,8 +266,19 @@ namespace Snapline
                 captureWindow = new CaptureWindow(image, async delegate(BitmapSource result)
                 {
                     await store.AddAsync(delegate { return result; });
-                    if (!captureDemo) { Clipboard.SetImage(result); clipboardSequence = Native.GetClipboardSequenceNumber(); }
-                    if (tray != null) { tray.BalloonTipTitle = "截图已完成"; tray.BalloonTipText = "已复制到剪贴板，并收进晾衣绳。"; tray.ShowBalloonTip(2000); }
+                    if (!captureDemo && !await ClipboardImages.TryCopyAsync(delegate
+                    {
+                        if (exiting) return;
+                        Clipboard.SetImage(result);
+                        clipboardSequence = Native.GetClipboardSequenceNumber();
+                    })) return false;
+                    if (tray != null && !exiting)
+                    {
+                        tray.BalloonTipTitle = "截图已完成";
+                        tray.BalloonTipText = captureDemo ? "已收进晾衣绳。" : "已复制到剪贴板，并收进晾衣绳。";
+                        tray.ShowBalloonTip(2000);
+                    }
+                    return true;
                 }, CopyPickedColor, delegate(BitmapSource result) { pins.Show(result); });
                 if (captureDemo) captureWindow.ShowInTaskbar = true;
                 captureWindow.ShowDialog();
@@ -390,6 +406,8 @@ namespace Snapline
             tray.Icon = AppIcon.TrayImage();
             tray.Text = demo ? "截图晾衣绳 · 演示模式" : "截图晾衣绳";
             var menu = new Forms.ContextMenuStrip();
+            menu.Items.Add(new Forms.ToolStripLabel("当前运行版本 v" + typeof(App).Assembly.GetName().Version.ToString(3)));
+            menu.Items.Add(new Forms.ToolStripSeparator());
             var capture = menu.Items.Add("截图", null, delegate { StartCapture(); });
             capture.Enabled = !demo;
             var configureCapture = menu.Items.Add("截图快捷键…", null, delegate

@@ -12,9 +12,11 @@
 
 ## 下载与安装
 
-**[下载最新 Windows x64 安装包](https://github.com/super-eggs/snapline-windows/releases/latest/download/Snapline-Setup-x64.exe)** · [全部版本与免安装版](https://github.com/super-eggs/snapline-windows/releases/latest)
+**[下载最新 Windows x64 安装包与免安装版](https://github.com/super-eggs/snapline-windows/releases/latest)** · [全部版本](https://github.com/super-eggs/snapline-windows/releases)
 
-下载 `Snapline-Setup-x64.exe` 后双击安装，从开始菜单打开。安装到当前用户目录，无需管理员权限；可从 Windows 设置卸载，卸载会保留本地截图与配置。也可下载 `Snapline-Portable-x64.zip`，解压后运行。
+从发布页下载安装包后双击安装，再从开始菜单打开。安装到当前用户目录，无需管理员权限。可从 Windows 设置卸载，卸载会保留本地截图与配置。免安装版解压后即可运行。
+
+从 1.0.2 起，安装包和免安装版文件名带有版本号。运行后右键系统托盘中的 Snapline 图标，菜单顶部会显示「当前运行版本」。
 
 需要 .NET Framework 4.8 或更高版本。当前程序和安装包未进行代码签名，Windows 可能提示未知发布者或 SmartScreen 警告；请核对下载来源与 Release 中的 SHA-256 校验值。
 
@@ -88,7 +90,7 @@ Windows PowerShell 中运行：
 
 `./installer/test-install.ps1` 在当前用户未安装 Snapline 时执行隔离安装、安装文件校验、快捷方式和注册检查、安装后窗口冒烟检查及卸载验证。它使用临时安装目录，不启动真实截图收集。
 
-维护者发布新版本时，更新 `src/AssemblyInfo.cs` 两个版本号及 `src/app.manifest` 版本，更新 `.github/release-notes.md`，提交后推送对应的 `v主.次.补丁` 标签。GitHub Actions 自动构建、运行自检与窗口冒烟检查、打包并发布为最新 Release；标签与程序版本不一致或验证失败时不会发布。安装包资产名称固定，以上“最新安装包”链接自动指向最新版本。
+维护者发布新版本时，更新 `src/AssemblyInfo.cs` 两个版本号及 `src/app.manifest` 版本，更新 `.github/release-notes.md`，提交后推送对应的 `v主.次.补丁` 标签。GitHub Actions 自动构建、验证和发布。发布资产使用程序文件版本命名，例如 `Snapline-Setup-1.0.2-x64.exe` 和 `Snapline-Portable-1.0.2-x64.zip`。下载链接指向最新 Release 的资产列表。
 
 ## 验收边界
 

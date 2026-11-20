@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -26,6 +27,7 @@ namespace Snapline
         }
         internal static void Run(string root, string artifacts, Action<bool, string> check)
         {
+            VerifyClipboardRetry(check);
             BitmapSource original = App.DemoImage(0);
             var canvas = new InkCanvas { Width = original.PixelWidth, Height = original.PixelHeight, Background = new ImageBrush(original) { Stretch = Stretch.Fill } };
             var tools = new AnnotationTools(canvas, original);
@@ -156,6 +158,35 @@ namespace Snapline
                 Native.UnregisterHotKey(new WindowInteropHelper(probe).Handle, 9);
             }
             finally { probe.Close(); }
+        }
+        private static void VerifyClipboardRetry(Action<bool, string> check)
+        {
+            const int cannotOpenClipboard = unchecked((int)0x800401D0);
+            int attempts = 0;
+            Task<bool> recovered = ClipboardImages.TryCopyAsync(delegate
+            {
+                if (++attempts < 3) throw new COMException("simulated busy clipboard", cannotOpenClipboard);
+            });
+            CollectionTests.Wait(recovered);
+            check(recovered.Result && attempts == 3, "capture copy succeeds after the clipboard becomes available");
+
+            attempts = 0;
+            Task<bool> exhausted = ClipboardImages.TryCopyAsync(delegate
+            {
+                attempts++;
+                throw new COMException("simulated busy clipboard", cannotOpenClipboard);
+            });
+            CollectionTests.Wait(exhausted);
+            check(!exhausted.Result && attempts == 3, "capture copy reports failure after two clipboard retries");
+
+            attempts = 0;
+            Task<bool> failed = ClipboardImages.TryCopyAsync(delegate
+            {
+                attempts++;
+                throw new UnauthorizedAccessException();
+            });
+            CollectionTests.Wait(failed);
+            check(!failed.Result && attempts == 1, "capture copy reports clipboard access denial without retries");
         }
         private static void VerifyCompactToolbar(BitmapSource original, string artifacts, Action<bool, string> check)
         {

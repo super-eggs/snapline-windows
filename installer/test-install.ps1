@@ -6,7 +6,10 @@ $testDir = Join-Path $env:TEMP ('Snapline-install-test-' + [guid]::NewGuid().ToS
 $group = 'Snapline'
 $shortcut = Join-Path ([Environment]::GetFolderPath('Programs')) ($group + '\Snapline.lnk')
 if (Test-Path $shortcut) { throw '已有 Snapline 开始菜单快捷方式，请在干净的 Windows 账户中测试。' }
-$setup = Join-Path $root 'artifacts\release\Snapline-Setup-x64.exe'
+$appVersion = ([version][Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $root 'dist\Snapline.exe')).FileVersion).ToString(3)
+$setup = Join-Path $root "artifacts\release\Snapline-Setup-$appVersion-x64.exe"
+$setupVersion = ([version][Diagnostics.FileVersionInfo]::GetVersionInfo($setup).FileVersion).ToString(3)
+if ($setupVersion -ne $appVersion) { throw "安装包文件版本与程序版本不一致：$setupVersion / $appVersion" }
 try {
     $log = Join-Path $root 'artifacts\install-test.log'
     $arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/NOCLOSEAPPLICATIONS', '/TASKS=""', ('/LOG="' + $log + '"'), ('/DIR="' + $testDir + '"'), ('/GROUP="' + $group + '"'))
@@ -19,11 +22,12 @@ try {
     }
     if (!(Test-Path $shortcut)) { throw "快捷方式缺失：$shortcut" }
     if (!(Test-Path $uninstallKey)) { throw '卸载注册缺失。' }
+    if ((Get-ItemPropertyValue -Path $uninstallKey -Name DisplayVersion) -ne $appVersion) { throw '安装注册版本与程序版本不一致。' }
     $report = Join-Path $root 'artifacts\installed-smoke-test.txt'
     $app = Start-Process (Join-Path $testDir 'Snapline.exe') -ArgumentList @('--smoke-test', ('"' + $report + '"')) -PassThru -WindowStyle Hidden
     if (!$app.WaitForExit(60000)) { Stop-Process -Id $app.Id; throw '安装后启动超时。' }
     if ($app.ExitCode -ne 0) { throw '安装后窗口检查失败。' }
-    Write-Host 'PASS 安装文件哈希、开始菜单快捷方式、卸载注册、安装后窗口启动'
+    Write-Host "PASS 安装包与安装注册版本 $appVersion、安装文件哈希、开始菜单快捷方式、安装后托盘版本与窗口启动"
 } finally {
     $uninstaller = Join-Path $testDir 'unins000.exe'
     if (Test-Path $uninstaller) {

@@ -46,5 +46,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME artifacts/release/Snapline-Setup-x64.exe artifacts/release/Snapline-Portable-x64.zip artifacts/release/SHA256SUMS.txt --verify-tag --title "Snapline $env:GITHUB_REF_NAME" --notes-file .github/release-notes.md --latest
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          $assets = @("artifacts/release/Snapline-Setup-$version-x64.exe", "artifacts/release/Snapline-Portable-$version-x64.zip", "artifacts/release/SHA256SUMS.txt")
+          gh release create $env:GITHUB_REF_NAME @assets --verify-tag --title "Snapline $env:GITHUB_REF_NAME" --notes-file .github/release-notes.md --latest
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }

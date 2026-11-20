@@ -1,11 +1,12 @@
 #ifndef AppVersion
-  #define AppVersion "1.0.1"
+  #error Build Snapline and use package.ps1 to supply AppVersion.
 #endif
 
 [Setup]
 AppId={{BBFEDE84-A60E-4F11-9CC5-1EE29BA57425}
 AppName=Snapline
 AppVersion={#AppVersion}
+VersionInfoVersion={#AppVersion}
 AppPublisher=super-eggs
 AppPublisherURL=https://github.com/super-eggs/snapline-windows
 AppSupportURL=https://github.com/super-eggs/snapline-windows/issues
@@ -18,7 +19,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 OutputDir=..\artifacts\release
-OutputBaseFilename=Snapline-Setup-x64
+OutputBaseFilename=Snapline-Setup-{#AppVersion}-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
