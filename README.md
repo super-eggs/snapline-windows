@@ -94,6 +94,8 @@ Windows PowerShell 中运行：
 
 维护者发布新版本时，更新 `src/AssemblyInfo.cs` 两个版本号及 `src/app.manifest` 版本，更新 `.github/release-notes.md`，提交后推送对应的 `v主.次.补丁` 标签。GitHub Actions 自动构建、验证和发布。发布资产使用程序文件版本命名，例如 `Snapline-Setup-1.0.2-x64.exe` 和 `Snapline-Portable-1.0.2-x64.zip`。下载链接指向最新 Release 的资产列表。
 
+推送与程序版本匹配的 `release-check/v主.次.补丁` 标签，可演练同一套构建、安装检查和上传流程。演练使用临时 GitHub Release 草稿，核对三个文件后删除草稿。演练完成后可删除演练标签。
+
 网站从 GitHub Release 同步正式版本和已上传的下载文件。发布说明中的 `## 中文更新` 和 `## English updates` 分别用于中英文页面，在每个标题下用列表填写更新要点。自动发布和手动发布都使用同一格式。正常情况下，新 Release 会在几分钟内显示。
 
 ## 验收边界

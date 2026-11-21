@@ -2,7 +2,7 @@ name: Build and publish Windows release
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v*', 'release-check/v*']
 
 permissions:
   contents: write
@@ -17,7 +17,9 @@ jobs:
         run: |
           $source = Get-Content src/AssemblyInfo.cs -Raw
           $version = [regex]::Match($source, 'AssemblyFileVersion\("(\d+\.\d+\.\d+)\.0"\)').Groups[1].Value
-          if (!$version -or $env:GITHUB_REF_NAME -ne "v$version") { throw 'Tag must match AssemblyFileVersion (vMAJOR.MINOR.PATCH).' }
+          $versionTag = $env:GITHUB_REF_NAME -creplace '^release-check/', ''
+          if (!$version -or $versionTag -cne "v$version") { throw 'Tag must match AssemblyFileVersion (vMAJOR.MINOR.PATCH).' }
+          "SNAPLINE_RELEASE_VERSION=$version" >> $env:GITHUB_ENV
       - name: Build and test
         shell: pwsh
         run: ./build.ps1 -Test
@@ -46,7 +48,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $version = $env:GITHUB_REF_NAME.Substring(1)
+          $version = $env:SNAPLINE_RELEASE_VERSION
           $assets = @("artifacts/release/Snapline-Setup-$version-x64.exe", "artifacts/release/Snapline-Portable-$version-x64.zip", "artifacts/release/SHA256SUMS.txt")
-          gh release create $env:GITHUB_REF_NAME @assets --verify-tag --title "Snapline $env:GITHUB_REF_NAME" --notes-file .github/release-notes.md --latest
+          $tag = $env:GITHUB_REF_NAME
+          $rehearsal = $tag.StartsWith('release-check/', [StringComparison]::Ordinal)
+          $visibility = if ($rehearsal) { '--draft' } else { '--latest' }
+          gh release create $tag @assets --verify-tag --title "Snapline $tag" --notes-file .github/release-notes.md $visibility
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
+          if ($rehearsal) {
+            $release = gh release view $tag --json tagName,isDraft,assets | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or !$release.isDraft -or $release.tagName -cne $tag) { throw 'Could not verify rehearsal draft.' }
+            try {
+              $expected = $assets | ForEach-Object { Split-Path -Leaf $_ }
+              $uploaded = @($release.assets | Where-Object state -eq 'uploaded' | ForEach-Object name)
+              if (Compare-Object $expected $uploaded) { throw 'Rehearsal release assets are incomplete.' }
+              Write-Host "PASS draft received $($uploaded -join ', ')"
+            } finally {
+              gh release delete $tag --yes
+              if ($LASTEXITCODE -ne 0) { throw 'Rehearsal draft cleanup failed.' }
+            }
+          }

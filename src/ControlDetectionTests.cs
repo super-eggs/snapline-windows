@@ -31,6 +31,15 @@ namespace Snapline
             screen.Windows.Add(new CaptureTarget(handle, new Rect(0, 0, bounds.Width, bounds.Height)));
             return screen;
         }
+        private static void ShowWithTestPointer(CaptureWindow capture, Point point)
+        {
+            // Real pointer moves must not replace the position chosen by this fixture.
+            capture.AddHandler(Mouse.PreviewMouseMoveEvent, new MouseEventHandler(delegate(object sender, MouseEventArgs e) { e.Handled = true; }));
+            // Loaded runs the capture window's own cursor initialization before this handler.
+            capture.Loaded += delegate { capture.UpdateHover(point); };
+            capture.Show();
+            capture.UpdateHover(point);
+        }
         internal static void Run(Action<bool, string> check)
         {
             var desktop = new System.Drawing.Rectangle(-900, -200, 1200, 800);
@@ -61,7 +70,7 @@ namespace Snapline
                 var capture = new CaptureWindow(screen, delegate { return Task.FromResult(true); });
                 try
                 {
-                    capture.Show(); capture.UpdateHover(point);
+                    ShowWithTestPointer(capture, point);
                     check(capture.Hover == screen.Windows[0].Bounds, "whole-window hover is available immediately while control lookup is pending");
                     WaitFor(delegate { return capture.Hover == expected; });
                     check(capture.Hover == expected && capture.HoverLevels >= 3, "real MSAA finds a native button and its parents beneath the visible capture overlay");
@@ -122,7 +131,7 @@ namespace Snapline
                 Point start = button.PointToScreen(new Point()), end = button.PointToScreen(new Point(button.ActualWidth, button.ActualHeight));
                 var expected = new Rect(new Point(start.X - bounds.Left, start.Y - bounds.Top), new Point(end.X - bounds.Left, end.Y - bounds.Top));
                 capture = new CaptureWindow(SyntheticScreen(handle, bounds), delegate { return Task.FromResult(true); });
-                capture.Show(); capture.UpdateHover(new Point(expected.Left + 5, expected.Top + 5));
+                ShowWithTestPointer(capture, new Point(expected.Left + 5, expected.Top + 5));
                 WaitFor(delegate { return capture.Hover == expected; });
                 check(capture.Hover == expected && capture.HoverLevels >= 2, "MSAA bridge detects a WPF button without its own HWND beneath the overlay");
             }
