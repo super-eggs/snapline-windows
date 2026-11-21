@@ -494,7 +494,7 @@
   track(capture, 'crop', event => {
     if (event.target.closest('.demo-capture-text, .demo-color-reading')) return null;
     const start = capturePoint(event);
-    if (capture.dataset.mode === 'mark') {
+    if (capture.dataset.mode === 'mark' || captureTools.canMoveText(start)) {
       event.preventDefault();
       capture.focus({ preventScroll: true });
       const annotation = captureTools.begin(start);
@@ -536,7 +536,7 @@
   }, ({ before, annotation }, canceled) => {
     if (annotation) {
       captureTools.finish(annotation, canceled);
-      if (!canceled && annotation.kind !== 'eraser') say(messages.marked);
+      if (!canceled && annotation.kind !== 'eraser' && annotation.kind !== 'move-text') say(messages.marked);
     } else {
       captureActions.removeAttribute('data-dragging');
       if (canceled) drawCrop(before);

@@ -1,21 +1,21 @@
 ## 中文更新
 
-- 截图完成时如果剪贴板被占用，自动重试复制。持续失败时提示截图已保存，可从晾衣绳重新复制。
-- 右键系统托盘图标可查看当前运行版本。
-- 安装包和免安装版文件名都带有版本号。
-- 可覆盖安装升级，保留截图与配置。
+- 右键系统托盘图标可手动检查 GitHub 上的最新正式版。
+- 安装版确认后下载并校验安装包，可在原目录升级，保留截图和设置。
+- 免安装版可从更新提示打开新版 ZIP 下载。
+- 文字标注确认后，可用文字或手形工具拖动调整位置，并用 Ctrl+Z 撤销移动。
 
 ## English updates
 
-- Snapline retries copying when the clipboard is busy. If copying still fails, the saved screenshot can be copied from the shelf.
-- The system tray menu shows the running version.
-- Installer and portable ZIP filenames include the version number.
-- Installing over an older version preserves screenshots and settings.
+- Check GitHub for the latest stable version from the system tray menu.
+- The installed edition verifies the installer before opening Setup. Upgrading in place preserves screenshots and settings.
+- The portable edition opens the new ZIP download from the update prompt.
+- Drag a finished text annotation with the text or hand tool. Press Ctrl+Z to undo the move.
 
 ## 下载与安装
 
-- **Snapline-Setup-1.0.2-x64.exe** 为 Windows 10/11 x64 安装包。双击安装，从开始菜单启动。
-- **Snapline-Portable-1.0.2-x64.zip** 为免安装版。解压后运行 Snapline.exe。
+- **Snapline-Setup-1.0.3-x64.exe** 为 Windows 10/11 x64 安装包。双击安装，从开始菜单启动。
+- **Snapline-Portable-1.0.3-x64.zip** 为免安装版。解压后运行 Snapline.exe。
 - **SHA256SUMS.txt**：上述文件的 SHA-256 校验值。
 
 安装到当前用户目录，无需管理员权限；可选桌面快捷方式，可从 Windows 设置卸载。卸载保留 `%LOCALAPPDATA%\Snapline` 中的截图和配置。

@@ -55,7 +55,7 @@ namespace Snapline
                 app.smokeReport = args.Length > smokeIndex + 1 ? Path.GetFullPath(args[smokeIndex + 1]) : Path.Combine(Path.GetTempPath(), "Snapline-smoke-test.txt");
             }
             bool owns;
-            app.mutex = new Mutex(true, app.smokeReport != null ? "Local\\Snapline.Smoke." + Guid.NewGuid().ToString("N") : app.demo ? "Local\\Snapline.Windows.Demo" : "Local\\Snapline.Windows", out owns);
+            app.mutex = new Mutex(true, app.smokeReport != null ? "Local\\Snapline.Smoke." + Guid.NewGuid().ToString("N") : app.demo ? "Local\\Snapline.Windows.Demo" : ReleaseUpdates.AppMutex, out owns);
             if (!owns)
             {
                 if (!app.startup) MessageBox.Show("截图晾衣绳已经运行，可从右下角托盘唤出。", "截图晾衣绳");
@@ -170,16 +170,18 @@ namespace Snapline
                         if (store.Items.Count != expectedCaptures || !tray.Visible) throw new InvalidOperationException("启动状态不完整");
                         string fileVersion = System.Diagnostics.FileVersionInfo.GetVersionInfo(Forms.Application.ExecutablePath).FileVersion;
                         string expectedVersionLabel = "当前运行版本 v" + new Version(fileVersion).ToString(3);
-                        bool versionShown = false, startupSettingDisabled = false;
+                        bool versionShown = false, startupSettingDisabled = false, updateDisabled = false;
                         foreach (Forms.ToolStripItem item in tray.ContextMenuStrip.Items)
                         {
                             if (item is Forms.ToolStripLabel && item.Text == expectedVersionLabel) versionShown = true;
                             var setting = item as Forms.ToolStripMenuItem;
                             if (setting != null && setting.Text == "开机自启（登录后）")
                                 startupSettingDisabled = !setting.Enabled && !setting.Checked;
+                            if (setting != null && setting.Text == "检查更新…") updateDisabled = !setting.Enabled;
                         }
                         if (!versionShown) throw new InvalidOperationException("托盘菜单显示的版本与程序文件版本不一致");
                         if (!startupSettingDisabled) throw new InvalidOperationException("演示模式必须显示并禁用开机自启设置");
+                        if (!updateDisabled) throw new InvalidOperationException("演示模式必须显示并禁用检查更新");
                         if (!smoothStart || shelf.ScrollOffset <= 0 || Math.Abs(shelf.ScrollOffset - shelf.ScrollTarget) > .3)
                             throw new InvalidOperationException("原生横向滚轮消息或实际滚动动画未完成");
                         shelf.Toggle(); if (shelf.IsVisible) throw new InvalidOperationException("窗口无法收起");
@@ -407,6 +409,9 @@ namespace Snapline
             tray.Text = demo ? "截图晾衣绳 · 演示模式" : "截图晾衣绳";
             var menu = new Forms.ContextMenuStrip();
             menu.Items.Add(new Forms.ToolStripLabel("当前运行版本 v" + typeof(App).Assembly.GetName().Version.ToString(3)));
+            var checkUpdates = menu.Items.Add("检查更新…");
+            checkUpdates.Enabled = !demo;
+            checkUpdates.Click += async delegate { await CheckForUpdatesAsync(checkUpdates); };
             menu.Items.Add(new Forms.ToolStripSeparator());
             var capture = menu.Items.Add("截图", null, delegate { StartCapture(); });
             capture.Enabled = !demo;
@@ -533,19 +538,7 @@ namespace Snapline
                     "使用说明 · 截图晾衣绳");
             });
             menu.Items.Add(new Forms.ToolStripSeparator());
-            menu.Items.Add("退出", null, async delegate
-            {
-                if (exiting) return;
-                exiting = true;
-                await store.WhenIdleAsync();
-                if (store.HasPendingClipboard && MessageBox.Show("还有一张剪贴板图片因写盘失败尚未保存。恢复磁盘空间或目录权限后会自动重试。\n\n现在退出会丢失这张未保存图片，仍要退出吗？", "截图晾衣绳", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
-                { exiting = false; return; }
-                if (clipboardTimer != null) clipboardTimer.Stop();
-                if (captureWindow != null) captureWindow.Close();
-                if (collector != null) collector.Dispose();
-                shelf.IsEnabled = false; tray.Visible = false;
-                await store.StopAsync(); Shutdown();
-            });
+            menu.Items.Add("退出", null, async delegate { await ExitAsync(); });
             menu.Opening += delegate { shelf.Busy = true; };
             menu.Closed += delegate { shelf.Busy = false; };
             tray.ContextMenuStrip = menu;
@@ -553,6 +546,115 @@ namespace Snapline
             tray.Visible = true;
             if (!demo && !startup) { tray.BalloonTipTitle = "截图晾衣绳已就绪"; tray.BalloonTipText = store.Settings.CaptureHotkey + " 截图取色；" + store.Settings.PinHotkey + " 贴图；Ctrl+Alt+T 展开晾衣绳。"; tray.ShowBalloonTip(4000); }
         }
+
+        private async Task CheckForUpdatesAsync(Forms.ToolStripItem item)
+        {
+            if (demo || exiting || !item.Enabled) return;
+            const string title = "Snapline 更新";
+            item.Enabled = false;
+            item.Text = "正在检查更新…";
+            try
+            {
+                var assembly = typeof(App).Assembly;
+                Version current = assembly.GetName().Version;
+                var release = await ReleaseUpdates.CheckAsync(current);
+                if (exiting) return;
+                if (release == null)
+                {
+                    MessageBox.Show("当前版本 v" + current.ToString(3) + " 已是最新版本。", title);
+                    return;
+                }
+
+                string installDirectory = ReleaseUpdates.InstalledDirectory(assembly.Location);
+                var asset = release.Package(installDirectory != null);
+                if (asset == null)
+                {
+                    MessageBox.Show("发现 " + release.Tag + "，适用于当前版本类型的下载文件暂未就绪，请稍后重试。", title);
+                    return;
+                }
+
+                string notes = release.Notes();
+                string message = "发现新版本 " + release.Tag + "（当前 v" + current.ToString(3) + "）。\n\n";
+                if (notes.Length > 0) message += notes + "\n\n";
+                message += installDirectory == null ? "要在浏览器中下载新版便携 ZIP 吗？请退出旧版后解压运行新版。"
+                    : "要下载并安装吗？校验完成后，Snapline 会退出并打开安装向导。已保存的截图和设置会保留，请先保存需要保留的贴图。";
+                if (MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Information, MessageBoxResult.No) != MessageBoxResult.Yes || exiting) return;
+
+                if (installDirectory == null)
+                {
+                    using (System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(asset.Url) { UseShellExecute = true })) { }
+                    return;
+                }
+
+                item.Text = "正在下载并校验安装包…";
+                using (var package = await ReleaseUpdates.DownloadAsync(asset))
+                {
+                    await ExitAsync(delegate
+                    {
+                        if (!string.Equals(ReleaseUpdates.InstalledDirectory(assembly.Location), installDirectory, StringComparison.OrdinalIgnoreCase))
+                            throw new InvalidDataException("安装目录已变化，请重新检查更新。");
+                        package.Start(installDirectory);
+                    });
+                }
+            }
+            catch (InvalidDataException ex)
+            {
+                if (!exiting) MessageBox.Show(ex.Message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            catch (Exception ex)
+            {
+                if (!(ex is IOException || ex is UnauthorizedAccessException || ex is System.Security.SecurityException
+                    || ex is System.Net.Http.HttpRequestException || ex is OperationCanceledException || ex is ObjectDisposedException
+                    || ex is System.Runtime.Serialization.SerializationException || ex is System.Xml.XmlException || ex is System.ComponentModel.Win32Exception
+                    || ex is ArgumentException)) throw;
+                if (!exiting) MessageBox.Show("更新操作失败。请检查网络连接、磁盘空间或安装权限后重试。", title, MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            finally
+            {
+                if (!exiting) { item.Text = "检查更新…"; item.Enabled = true; }
+            }
+        }
+
+        private async Task ExitAsync(Action startInstaller = null)
+        {
+            if (exiting) return;
+            exiting = true;
+            try
+            {
+                await store.WhenIdleAsync();
+                if (startInstaller != null)
+                {
+                    while (!store.WhenIdleAsync().IsCompleted) await store.WhenIdleAsync();
+                    bool editing = captureStarting || captureWindow != null || shortcutDialogOpen;
+                    foreach (Window window in Windows)
+                        if (window is Preview) editing = true;
+                    if (editing || store.HasPendingClipboard)
+                    {
+                        MessageBox.Show("请先完成截图、关闭预览和设置窗口，并保存待保存的图片，再检查更新。", "Snapline 更新");
+                        exiting = false;
+                        return;
+                    }
+                    startInstaller();
+                }
+                else if (store.HasPendingClipboard && MessageBox.Show("还有一张剪贴板图片因写盘失败尚未保存。恢复磁盘空间或目录权限后会自动重试。\n\n现在退出会丢失这张未保存图片，仍要退出吗？", "截图晾衣绳", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+                {
+                    exiting = false;
+                    return;
+                }
+            }
+            catch
+            {
+                exiting = false;
+                throw;
+            }
+            if (clipboardTimer != null) clipboardTimer.Stop();
+            if (captureWindow != null) captureWindow.Close();
+            if (collector != null) collector.Dispose();
+            shelf.IsEnabled = false; tray.Visible = false;
+            await store.StopAsync();
+            Shutdown();
+        }
+
         private static bool IsStartupSettingError(Exception ex)
         {
             return ex is IOException || ex is UnauthorizedAccessException || ex is System.Security.SecurityException || ex is NotSupportedException;

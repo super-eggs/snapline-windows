@@ -247,7 +247,7 @@ namespace Snapline
                 e.Handled = true; return;
             }
             if (!selected) UpdateHover(point);
-            if (selected && annotations.Tool != AnnotationTool.Hand && selection.Contains(point)) return;
+            if (selected && selection.Contains(point) && (annotations.Tool != AnnotationTool.Hand || annotations.HasTextAt(e.GetPosition(ink)))) return;
             if (selected && e.ClickCount == 2 && selection.Contains(point)) { Finish(); e.Handled = true; return; }
             hit = Hit(point);
             if (selected && annotations.HasAnnotations) return;

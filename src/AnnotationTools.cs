@@ -25,6 +25,9 @@ namespace Snapline
         private Point start;
         private UIElement draft;
         private TextBox text;
+        private TextBlock movingText, textBeforeMove;
+        private Point textOrigin;
+        private Size textSize;
         private Color color = Colors.OrangeRed;
         private double thickness = 3;
         private Button undo, redo;
@@ -45,7 +48,7 @@ namespace Snapline
             {
                 AnnotationTool selected = tool;
                 string[] icons = { "hand", "pen", "rectangle", "ellipse", "line", "arrow", "text", "mosaic", "eraser" };
-                string[] names = { "拖动 / 调整选区", "画笔", "矩形", "椭圆", "直线", "箭头", "文字（点击输入，Ctrl+Enter 完成）", "马赛克（拖出矩形）", "橡皮（擦除笔迹，其他标注可撤销）" };
+                string[] names = { "拖动 / 调整选区", "画笔", "矩形", "椭圆", "直线", "箭头", "文字（点击输入，Ctrl+Enter 完成，拖动可移动）", "马赛克（拖出矩形）", "橡皮（擦除笔迹，其他标注可撤销）" };
                 var button = Ui.CompactIconButton(icons[(int)tool], names[(int)tool], delegate { Select(selected); });
                 buttons.Add(tool, button); Toolbar.Children.Add(button);
             }
@@ -112,7 +115,7 @@ namespace Snapline
             canvas.PreviewMouseLeftButtonDown += Down;
             canvas.PreviewMouseMove += Move;
             canvas.PreviewMouseLeftButtonUp += Up;
-            canvas.LostMouseCapture += delegate { if (drawing) CancelDraft(); };
+            canvas.LostMouseCapture += delegate { if (drawing || movingText != null) CancelDraft(); };
             canvas.StrokeCollected += delegate { Record(); };
             canvas.StrokeErased += delegate { Record(); };
             history.Add(Snapshot()); Select(AnnotationTool.Hand);
@@ -128,14 +131,37 @@ namespace Snapline
         private Point Clamp(Point p) { return new Point(Math.Max(0, Math.Min(canvas.Width, p.X)), Math.Max(0, Math.Min(canvas.Height, p.Y))); }
         private void Down(object sender, MouseButtonEventArgs e)
         {
-            if (Tool == AnnotationTool.Hand || Tool == AnnotationTool.Pen || Tool == AnnotationTool.Eraser || text != null && text.IsMouseOver) return;
-            CommitText(); start = Clamp(e.GetPosition(canvas)); e.Handled = true;
+            if (Tool == AnnotationTool.Pen || Tool == AnnotationTool.Eraser || text != null && text.IsMouseOver) return;
+            Point point = Clamp(e.GetPosition(canvas));
+            if (Tool == AnnotationTool.Hand || Tool == AnnotationTool.Text)
+            {
+                TextBlock existing = FindText(point);
+                if (existing != null)
+                {
+                    CommitText();
+                    if (canvas.CaptureMouse()) BeginTextMove(existing, point);
+                    e.Handled = true;
+                    return;
+                }
+                if (Tool == AnnotationTool.Hand) return;
+            }
+            CommitText(); start = point; e.Handled = true;
             if (Tool == AnnotationTool.Text) { BeginText(start); return; }
             drawing = canvas.CaptureMouse();
         }
         private void Move(object sender, MouseEventArgs e)
         {
-            if (!drawing) return;
+            if (movingText != null)
+            {
+                MoveText(e.GetPosition(canvas));
+                e.Handled = true;
+                return;
+            }
+            if (!drawing)
+            {
+                if (Tool == AnnotationTool.Text) canvas.Cursor = HasTextAt(e.GetPosition(canvas)) ? Cursors.SizeAll : Cursors.IBeam;
+                return;
+            }
             if (draft != null) canvas.Children.Remove(draft);
             Point end = Clamp(e.GetPosition(canvas));
             if (Tool == AnnotationTool.Mosaic)
@@ -150,6 +176,14 @@ namespace Snapline
         }
         private void Up(object sender, MouseButtonEventArgs e)
         {
+            if (movingText != null)
+            {
+                MoveText(e.GetPosition(canvas));
+                EndTextMove(true);
+                canvas.ReleaseMouseCapture();
+                e.Handled = true;
+                return;
+            }
             if (!drawing) return;
             Move(sender, e); drawing = false; canvas.ReleaseMouseCapture();
             if (Tool == AnnotationTool.Mosaic)
@@ -163,6 +197,7 @@ namespace Snapline
         }
         private void CancelDraft()
         {
+            if (movingText != null) EndTextMove(false);
             drawing = false;
             if (draft != null) { canvas.Children.Remove(draft); draft = null; }
             if (canvas.IsMouseCaptured) canvas.ReleaseMouseCapture();
@@ -225,8 +260,13 @@ namespace Snapline
         }
         private void BeginText(Point point)
         {
-            text = new TextBox { Foreground = new SolidColorBrush(color), Background = Ui.Brush(32, 32, 32), FontSize = 16 + thickness * 2,
-                BorderBrush = Ui.Accent, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinWidth = Math.Min(140, canvas.Width - point.X), MaxWidth = Math.Max(1, canvas.Width - point.X), Padding = new Thickness(2) };
+            double size = 16 + thickness * 2;
+            double minWidth = Math.Min(140, canvas.Width);
+            point.X = Math.Min(point.X, canvas.Width - minWidth);
+            point.Y = Math.Min(point.Y, Math.Max(0, canvas.Height - Math.Ceiling(size * 1.4)));
+            text = new TextBox { Foreground = new SolidColorBrush(color), Background = Brushes.Transparent, FontSize = size,
+                BorderBrush = Ui.Accent, BorderThickness = new Thickness(1), CaretBrush = Ui.Accent, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
+                MinWidth = minWidth, MaxWidth = canvas.Width - point.X, Padding = new Thickness(2) };
             InkCanvas.SetLeft(text, point.X); InkCanvas.SetTop(text, point.Y); canvas.Children.Add(text);
             text.PreviewKeyDown += delegate(object sender, KeyEventArgs e)
             {
@@ -244,9 +284,54 @@ namespace Snapline
             if (text == null) return;
             var input = text; text = null; canvas.Children.Remove(input); canvas.Focus();
             if (string.IsNullOrWhiteSpace(input.Text)) return;
-            var label = new TextBlock { Text = input.Text, FontSize = input.FontSize, Foreground = input.Foreground, FontFamily = input.FontFamily,
-                TextWrapping = TextWrapping.Wrap, MaxWidth = input.MaxWidth, IsHitTestVisible = false };
-            InkCanvas.SetLeft(label, InkCanvas.GetLeft(input)); InkCanvas.SetTop(label, InkCanvas.GetTop(input)); canvas.Children.Add(label); Record();
+            var label = TextLabel(input.Text, input.FontSize, input.Foreground, input.FontFamily, input.MaxWidth);
+            label.Measure(new Size(label.MaxWidth, double.PositiveInfinity));
+            InkCanvas.SetLeft(label, InkCanvas.GetLeft(input));
+            InkCanvas.SetTop(label, Math.Min(InkCanvas.GetTop(input), Math.Max(0, canvas.Height - label.DesiredSize.Height)));
+            canvas.Children.Add(label);
+            Record();
+        }
+        private static TextBlock TextLabel(string value, double size, Brush ink, FontFamily family, double maxWidth)
+        {
+            return new TextBlock { Text = value, FontSize = size, Foreground = ink, FontFamily = family,
+                TextWrapping = TextWrapping.Wrap, MaxWidth = maxWidth, IsHitTestVisible = false };
+        }
+        private TextBlock FindText(Point point)
+        {
+            return canvas.Children.OfType<TextBlock>().Reverse().FirstOrDefault(label =>
+                new Rect(new Point(InkCanvas.GetLeft(label), InkCanvas.GetTop(label)), label.RenderSize).Contains(point));
+        }
+        internal bool HasTextAt(Point point) { return FindText(point) != null; }
+        private void ReplaceText(TextBlock current, TextBlock replacement)
+        {
+            int index = canvas.Children.IndexOf(current);
+            canvas.Children.RemoveAt(index);
+            canvas.Children.Insert(index, replacement);
+        }
+        private void BeginTextMove(TextBlock existing, Point point)
+        {
+            textBeforeMove = existing;
+            textOrigin = new Point(InkCanvas.GetLeft(existing), InkCanvas.GetTop(existing));
+            textSize = existing.RenderSize;
+            start = point;
+            // Keep the committed label untouched because earlier undo states reference it.
+            movingText = TextLabel(existing.Text, existing.FontSize, existing.Foreground, existing.FontFamily, existing.MaxWidth);
+            InkCanvas.SetLeft(movingText, textOrigin.X); InkCanvas.SetTop(movingText, textOrigin.Y);
+            ReplaceText(existing, movingText);
+            canvas.Cursor = Cursors.SizeAll;
+        }
+        private void MoveText(Point point)
+        {
+            Point destination = textOrigin + (point - start);
+            InkCanvas.SetLeft(movingText, Math.Max(0, Math.Min(canvas.Width - textSize.Width, destination.X)));
+            InkCanvas.SetTop(movingText, Math.Max(0, Math.Min(canvas.Height - textSize.Height, destination.Y)));
+        }
+        private void EndTextMove(bool commit)
+        {
+            TextBlock label = movingText, previous = textBeforeMove;
+            movingText = textBeforeMove = null;
+            if (commit && (InkCanvas.GetLeft(label) != textOrigin.X || InkCanvas.GetTop(label) != textOrigin.Y)) Record();
+            else ReplaceText(label, previous);
         }
         internal void DiscardText() { if (text != null) { canvas.Children.Remove(text); text = null; canvas.Focus(); } }
         private State Snapshot() { return new State { Strokes = canvas.Strokes.ToArray(), Children = canvas.Children.Cast<UIElement>().ToArray() }; }

@@ -93,6 +93,7 @@ namespace Snapline
             {
                 Directory.CreateDirectory(root);
                 StartupRegistrationTests.Run(root, Check);
+                ReleaseUpdatesTests.Run(Check);
                 using (var stream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("Snapline.AppIcon.ico"))
                 {
                     var decoder = new IconBitmapDecoder(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);

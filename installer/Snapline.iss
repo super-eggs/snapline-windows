@@ -1,9 +1,10 @@
 #ifndef AppVersion
   #error Build Snapline and use package.ps1 to supply AppVersion.
 #endif
+#define SnaplineAppId "{BBFEDE84-A60E-4F11-9CC5-1EE29BA57425}"
 
 [Setup]
-AppId={{BBFEDE84-A60E-4F11-9CC5-1EE29BA57425}
+AppId={{#SnaplineAppId}
 AppName=Snapline
 AppVersion={#AppVersion}
 VersionInfoVersion={#AppVersion}
@@ -44,6 +45,34 @@ Name: "{autodesktop}\Snapline"; Filename: "{app}\Snapline.exe"; Tasks: desktopic
 Filename: "{app}\Snapline.exe"; Description: "Launch Snapline"; Flags: nowait postinstall skipifsilent
 
 [Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  InstalledPath: String;
+  Attempt: Integer;
+begin
+  Result := '';
+  if ExpandConstant('{param:SNAPLINEUPDATE|0}') <> '1' then
+    Exit;
+
+  if not RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SnaplineAppId}_is1', 'Inno Setup: App Path', InstalledPath) then
+    InstalledPath := '';
+  if (InstalledPath = '') or not FileExists(AddBackslash(InstalledPath) + 'Snapline.exe') or
+      (CompareText(RemoveBackslashUnlessRoot(ExpandConstant('{app}')), RemoveBackslashUnlessRoot(InstalledPath)) <> 0) then
+  begin
+    Result := 'This update must be installed in the current Snapline installation folder.';
+    Exit;
+  end;
+
+  { Snapline releases this mutex after saving queued screenshots and shutting down. }
+  for Attempt := 1 to 100 do
+  begin
+    if not CheckForMutexes('Local\Snapline.Windows') then
+      Exit;
+    Sleep(100);
+  end;
+  Result := 'Snapline is still running. Exit it from the system tray, then try again.';
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Command: String;

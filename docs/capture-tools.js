@@ -5,13 +5,15 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
     tools: ['Move or resize selection', 'Pen', 'Rectangle', 'Ellipse', 'Line', 'Arrow', 'Text', 'Mosaic', 'Eraser'],
     colors: ['Orange red', 'Gold', 'Green', 'Blue', 'White', 'Black'],
     undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Y)', color: 'Annotation color', width: 'Stroke width',
-    picker: 'Color picker', text: 'Annotation text', apply: 'Apply', findColor: 'Point at the image to sample its original color. Click or press C to copy. Shift switches HEX / RGB.',
+    picker: 'Color picker', text: 'Annotation text', apply: 'Apply', textAdded: 'Drag the text to adjust its position.',
+    findColor: 'Point at the image to sample its original color. Click or press C to copy. Shift switches HEX / RGB.',
     copied: value => `Copied ${value}.`, copyFailed: value => `Picked ${value}. Clipboard access is unavailable.`,
   } : {
     tools: ['移动或调整选区', '画笔', '矩形', '椭圆', '直线', '箭头', '文字', '马赛克', '橡皮擦'],
     colors: ['橙红色', '金黄色', '绿色', '蓝色', '白色', '黑色'],
     undo: '撤销（Ctrl+Z）', redo: '重做（Ctrl+Y）', color: '标注颜色', width: '标注线宽',
-    picker: '取色器', text: '标注文字', apply: '确定', findColor: '移动到选区内取原图颜色，点击或按 C 复制，Shift 切换 HEX / RGB。',
+    picker: '取色器', text: '标注文字', apply: '确定', textAdded: '可以直接拖动文字调整位置。',
+    findColor: '移动到选区内取原图颜色，点击或按 C 复制，Shift 切换 HEX / RGB。',
     copied: value => `已复制 ${value}。`, copyFailed: value => `已取色 ${value}。当前浏览器无法写入剪贴板。`,
   };
   const selection = overlay.querySelector('.demo-selection');
@@ -175,6 +177,7 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
     closeChoices();
     reading.hidden = true;
     mode = kind;
+    overlay.classList.remove('demo-text-movable');
     refresh();
     if (kind === 'picker') say(copy.findColor);
   }
@@ -189,6 +192,7 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
     mode = 'hand';
     picked = null;
     reading.hidden = form.hidden = true;
+    overlay.classList.remove('demo-text-movable');
     closeChoices();
     refresh();
     if (!rect) return;
@@ -223,7 +227,7 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
       const size = 12 + mark.width * 2;
       context.font = `${size}px Segoe UI, Microsoft YaHei, sans-serif`;
       context.textBaseline = 'top';
-      mark.text.split('\n').forEach((line, index) => context.fillText(line, start.x, start.y + index * size * 1.3, Math.max(1, canvas.width - start.x)));
+      mark.text.split('\n').forEach((line, index) => context.fillText(line, start.x, start.y + index * size * 1.3, mark.maxWidth));
       return;
     }
     context.beginPath();
@@ -272,12 +276,12 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
     refresh();
   }
 
-  function place(element, point) {
+  function place(element, point, gap = 7) {
     const frame = overlay.getBoundingClientRect();
     const area = selection.getBoundingClientRect();
     element.hidden = false;
-    const left = Math.min(point.x / canvas.width * area.width + 7, frame.right - area.left - element.offsetWidth - 6);
-    const top = Math.min(point.y / canvas.height * area.height + 7, frame.bottom - area.top - element.offsetHeight - 6);
+    const left = Math.min(point.x / canvas.width * area.width + gap, frame.right - area.left - element.offsetWidth - 6);
+    const top = Math.min(point.y / canvas.height * area.height + gap, frame.bottom - area.top - element.offsetHeight - 6);
     element.style.left = `${Math.max(frame.left - area.left + 6, left)}px`;
     element.style.top = `${Math.max(frame.top - area.top + 6, top)}px`;
   }
@@ -286,7 +290,16 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
     if (form.hidden) return;
     form.hidden = true;
     const text = input.value.trim();
-    if (text) saveHistory([...history[position], { kind: 'text', start: textStart, end: textStart, text, ink, width }]);
+    if (!text) return;
+    const size = 12 + width * 2;
+    const lines = text.split('\n');
+    context.font = `${size}px Segoe UI, Microsoft YaHei, sans-serif`;
+    const maxWidth = Math.max(1, canvas.width - textStart.x);
+    const textWidth = Math.min(maxWidth, Math.ceil(Math.max(...lines.map(line => context.measureText(line).width))));
+    const textHeight = Math.ceil(lines.length * size * 1.3);
+    const start = { x: textStart.x, y: Math.min(textStart.y, Math.max(0, canvas.height - textHeight)) };
+    saveHistory([...history[position], { kind: 'text', start, end: start, text, ink, width, maxWidth, textWidth, textHeight }]);
+    say(copy.textAdded);
   }
 
   function within(point) {
@@ -298,6 +311,16 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
       x: Math.max(0, Math.min(region.w - 1, point.x - region.x)),
       y: Math.max(0, Math.min(region.h - 1, point.y - region.y)),
     };
+  }
+
+  function textIndex(point) {
+    return history[position].findLastIndex(mark => mark.kind === 'text'
+      && point.x >= mark.start.x && point.x <= mark.start.x + mark.textWidth
+      && point.y >= mark.start.y && point.y <= mark.start.y + mark.textHeight);
+  }
+
+  function canMoveText(point) {
+    return (mode === 'hand' || mode === 'text') && within(point) && textIndex(local(point)) !== -1;
   }
 
   function updateReading() {
@@ -313,6 +336,7 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
   }
 
   function hover(point) {
+    overlay.classList.toggle('demo-text-movable', Boolean(canMoveText(point)));
     if (mode !== 'picker') return;
     if (!within(point)) {
       reading.hidden = true;
@@ -339,7 +363,7 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
   }
 
   function begin(point) {
-    if (!within(point) || mode === 'hand') return null;
+    if (!within(point)) return null;
     closeChoices();
     if (mode === 'picker') {
       hover(point);
@@ -347,11 +371,22 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
       return null;
     }
     const start = local(point);
-    if (mode === 'text') {
+    if (mode === 'text' || mode === 'hand') {
       commitText();
-      textStart = start;
+      const index = textIndex(start);
+      if (index !== -1) return { kind: 'move-text', start, index, base: history[position] };
+      if (mode === 'hand') return null;
+    }
+    if (mode === 'text') {
+      const size = 12 + width * 2;
+      textStart = {
+        x: Math.min(start.x, Math.max(0, canvas.width - 140)),
+        y: Math.min(start.y, Math.max(0, canvas.height - Math.ceil(size * 1.3))),
+      };
       input.value = '';
-      place(form, start);
+      input.style.color = ink;
+      input.style.fontSize = `${Math.max(14, size * canvas.clientWidth / canvas.width)}px`;
+      place(form, textStart, 0);
       input.focus({ preventScroll: true });
       return null;
     }
@@ -372,6 +407,18 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
 
   function update(draft, point, constrain) {
     let end = local(point);
+    if (draft.kind === 'move-text') {
+      if (draft.base !== history[position]) return;
+      const mark = draft.base[draft.index];
+      const start = {
+        x: Math.max(0, Math.min(canvas.width - mark.textWidth, mark.start.x + end.x - draft.start.x)),
+        y: Math.max(0, Math.min(canvas.height - mark.textHeight, mark.start.y + end.y - draft.start.y)),
+      };
+      draft.marks = draft.base.slice();
+      draft.marks[draft.index] = { ...mark, start, end: start };
+      render(draft.marks);
+      return;
+    }
     if (draft.kind === 'eraser') {
       draft.remaining = draft.remaining.filter(mark => mark.kind !== 'pen' || !penNear(mark, end));
       render(draft.remaining);
@@ -397,6 +444,12 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
 
   function finish(draft, canceled) {
     if (canceled) render();
+    else if (draft.kind === 'move-text') {
+      if (draft.base !== history[position]) return;
+      const from = draft.base[draft.index].start;
+      const to = draft.marks[draft.index].start;
+      if (from.x !== to.x || from.y !== to.y) saveHistory(draft.marks);
+    }
     else if (draft.kind === 'eraser') {
       if (draft.remaining.length !== history[position].length) saveHistory(draft.remaining);
     } else if (draft.kind === 'pen' || draft.end.x !== draft.start.x || draft.end.y !== draft.start.y) {
@@ -436,5 +489,5 @@ function createCaptureTools(overlay, toolbar, source, say, english) {
     return true;
   }
 
-  return { canvas, setRegion, begin, update, finish, hover, handleKey, commitText };
+  return { canvas, setRegion, begin, update, finish, hover, handleKey, commitText, canMoveText };
 }

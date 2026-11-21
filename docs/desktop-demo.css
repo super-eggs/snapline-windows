@@ -313,7 +313,7 @@
 }
 .demo-ink-dot { display: block; width: 15px; height: 15px; border: 1px solid #ffffff55; border-radius: 50%; }
 .demo-capture-choice { position: relative; }
-.demo-capture-popover, .demo-capture-text, .demo-color-reading {
+.demo-capture-popover, .demo-color-reading {
   border: 1px solid var(--native-edge);
   border-radius: 6px;
   background: var(--native-surface);
@@ -335,7 +335,6 @@
   z-index: 1;
   display: grid;
   gap: 4px;
-  padding: 5px;
   pointer-events: auto;
   width: min(175px, 54vw);
 }
@@ -344,13 +343,14 @@
   min-height: 42px;
   padding: 4px;
   resize: none;
-  border: 1px solid var(--native-edge);
+  border: 1px solid var(--native-accent);
   border-radius: 4px;
   font: 12px/1.4 var(--font);
-  background: var(--native-raised);
-  color: var(--native-text);
+  background: transparent;
+  text-shadow: 0 0 2px #fff;
 }
-.demo-capture-text button { justify-self: end; padding: 2px 7px; font-size: 11px; background: var(--native-raised); }
+.demo-capture-text button { justify-self: end; padding: 2px 7px; font-size: 11px; background: var(--native-surface); color: var(--native-text); }
+.demo-capture.demo-text-movable { cursor: move; }
 .demo-color-reading {
   position: absolute;
   z-index: 2;
