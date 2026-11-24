@@ -8,6 +8,7 @@ using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 
 namespace Snapline
 {
@@ -162,17 +163,28 @@ namespace Snapline
                 if (Tool == AnnotationTool.Text) canvas.Cursor = HasTextAt(e.GetPosition(canvas)) ? Cursors.SizeAll : Cursors.IBeam;
                 return;
             }
-            if (draft != null) canvas.Children.Remove(draft);
-            Point end = Clamp(e.GetPosition(canvas));
+            UpdateDraft(Clamp(e.GetPosition(canvas)));
+            e.Handled = true;
+        }
+        private void UpdateDraft(Point end)
+        {
+            if ((end - start).Length < 1) { RemoveDraft(); return; }
             if (Tool == AnnotationTool.Mosaic)
             {
                 var rect = new Rect(start, end);
-                draft = new System.Windows.Shapes.Rectangle { Width = rect.Width, Height = rect.Height, Fill = new SolidColorBrush(Color.FromArgb(110, 180, 180, 180)), IsHitTestVisible = false };
-                InkCanvas.SetLeft(draft, rect.X); InkCanvas.SetTop(draft, rect.Y);
+                var outline = (Rectangle)draft;
+                if (outline == null)
+                {
+                    outline = new Rectangle { Stroke = Ui.Accent, StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 4, 2 }, IsHitTestVisible = false };
+                    draft = outline; canvas.Children.Add(outline);
+                }
+                outline.Width = rect.Width; outline.Height = rect.Height;
+                InkCanvas.SetLeft(outline, rect.X); InkCanvas.SetTop(outline, rect.Y);
+                return;
             }
-            else draft = CreateMark(Tool, start, end, (Keyboard.Modifiers & ModifierKeys.Shift) != 0);
-            if (draft != null) canvas.Children.Add(draft);
-            e.Handled = true;
+            var geometry = MarkGeometry(Tool, start, end, (Keyboard.Modifiers & ModifierKeys.Shift) != 0);
+            if (draft != null) ((Path)draft).Data = geometry;
+            else { draft = ShapeMark(geometry); canvas.Children.Add(draft); }
         }
         private void Up(object sender, MouseButtonEventArgs e)
         {
@@ -185,21 +197,28 @@ namespace Snapline
                 return;
             }
             if (!drawing) return;
-            Move(sender, e); drawing = false; canvas.ReleaseMouseCapture();
+            Point end = Clamp(e.GetPosition(canvas));
+            drawing = false; canvas.ReleaseMouseCapture();
             if (Tool == AnnotationTool.Mosaic)
             {
-                canvas.Children.Remove(draft);
-                draft = CreateMark(Tool, start, Clamp(e.GetPosition(canvas)), false);
+                RemoveDraft();
+                draft = CreateMark(Tool, start, end, false);
                 if (draft != null) canvas.Children.Add(draft);
             }
+            else UpdateDraft(end);
             if (draft != null) { draft = null; Record(); }
             e.Handled = true;
+        }
+        private void RemoveDraft()
+        {
+            if (draft == null) return;
+            canvas.Children.Remove(draft); draft = null;
         }
         private void CancelDraft()
         {
             if (movingText != null) EndTextMove(false);
             drawing = false;
-            if (draft != null) { canvas.Children.Remove(draft); draft = null; }
+            RemoveDraft();
             if (canvas.IsMouseCaptured) canvas.ReleaseMouseCapture();
         }
         internal void AddMark(AnnotationTool tool, Point from, Point to, bool constrain = false)
@@ -207,9 +226,29 @@ namespace Snapline
             CommitText(); var mark = CreateMark(tool, Clamp(from), Clamp(to), constrain);
             if (mark != null) { canvas.Children.Add(mark); Record(); }
         }
+        internal BitmapSource Render()
+        {
+            CancelDraft(); CommitText();
+            return Preview.RenderAnnotation(canvas);
+        }
         private UIElement CreateMark(AnnotationTool tool, Point from, Point to, bool constrain)
         {
             if ((to - from).Length < 1) return null;
+            if (tool != AnnotationTool.Mosaic) return ShapeMark(MarkGeometry(tool, from, to, constrain));
+
+            Int32Rect pixels = ScreenCapture.PixelRect(new Rect(from, to), original.PixelWidth, original.PixelHeight);
+            if (pixels.Width == 0 || pixels.Height == 0) return null;
+            // Render the patch at original resolution so mosaic also covers earlier text and strokes.
+            BitmapSource patch = Preview.RenderAnnotation(canvas, pixels);
+            var small = new TransformedBitmap(patch, new ScaleTransform(Math.Max(1, pixels.Width / 12) / (double)pixels.Width, Math.Max(1, pixels.Height / 12) / (double)pixels.Height));
+            // Detach the small bitmap so undo history does not retain the rendered patch.
+            var detached = new WriteableBitmap(small); detached.Freeze();
+            var mosaic = new Image { Source = detached, Width = pixels.Width, Height = pixels.Height, Stretch = Stretch.Fill, IsHitTestVisible = false };
+            RenderOptions.SetBitmapScalingMode(mosaic, BitmapScalingMode.NearestNeighbor);
+            InkCanvas.SetLeft(mosaic, pixels.X); InkCanvas.SetTop(mosaic, pixels.Y); return mosaic;
+        }
+        private Geometry MarkGeometry(AnnotationTool tool, Point from, Point to, bool constrain)
+        {
             if (constrain)
             {
                 Vector delta = to - from;
@@ -225,37 +264,23 @@ namespace Snapline
                 }
             }
             Rect rect = new Rect(from, to);
-            if (tool == AnnotationTool.Mosaic)
+            if (tool == AnnotationTool.Rectangle) return new RectangleGeometry(rect);
+            if (tool == AnnotationTool.Ellipse) return new EllipseGeometry(rect);
+
+            var group = new GeometryGroup(); group.Children.Add(new LineGeometry(from, to));
+            if (tool == AnnotationTool.Arrow && to != from)
             {
-                Int32Rect pixels = ScreenCapture.PixelRect(rect, original.PixelWidth, original.PixelHeight);
-                if (pixels.Width == 0 || pixels.Height == 0) return null;
-                // Mosaic the current composite, so it also covers earlier text or strokes.
-                BitmapSource image = Preview.RenderAnnotation(canvas);
-                var crop = new CroppedBitmap(image, pixels);
-                var small = new TransformedBitmap(crop, new ScaleTransform(Math.Max(1, pixels.Width / 12) / (double)pixels.Width, Math.Max(1, pixels.Height / 12) / (double)pixels.Height));
-                // Materialize the tiny mosaic so undo history cannot retain a full-canvas snapshot per mark.
-                var detached = new WriteableBitmap(small); detached.Freeze();
-                var mosaic = new Image { Source = detached, Width = pixels.Width, Height = pixels.Height, Stretch = Stretch.Fill, IsHitTestVisible = false };
-                RenderOptions.SetBitmapScalingMode(mosaic, BitmapScalingMode.NearestNeighbor);
-                InkCanvas.SetLeft(mosaic, pixels.X); InkCanvas.SetTop(mosaic, pixels.Y); return mosaic;
+                Vector direction = from - to; direction.Normalize();
+                Vector side = new Vector(-direction.Y, direction.X);
+                double size = Math.Min((to - from).Length * .45, Math.Max(12, thickness * 4));
+                group.Children.Add(new LineGeometry(to, to + direction * size + side * size * .5));
+                group.Children.Add(new LineGeometry(to, to + direction * size - side * size * .5));
             }
-            Geometry geometry;
-            if (tool == AnnotationTool.Rectangle) geometry = new RectangleGeometry(rect);
-            else if (tool == AnnotationTool.Ellipse) geometry = new EllipseGeometry(rect);
-            else
-            {
-                var group = new GeometryGroup(); group.Children.Add(new LineGeometry(from, to));
-                if (tool == AnnotationTool.Arrow)
-                {
-                    Vector direction = from - to; direction.Normalize();
-                    Vector side = new Vector(-direction.Y, direction.X);
-                    double size = Math.Min((to - from).Length * .45, Math.Max(12, thickness * 4));
-                    group.Children.Add(new LineGeometry(to, to + direction * size + side * size * .5));
-                    group.Children.Add(new LineGeometry(to, to + direction * size - side * size * .5));
-                }
-                geometry = group;
-            }
-            return new System.Windows.Shapes.Path { Data = geometry, Stroke = new SolidColorBrush(color), StrokeThickness = thickness,
+            return group;
+        }
+        private Path ShapeMark(Geometry geometry)
+        {
+            return new Path { Data = geometry, Stroke = new SolidColorBrush(color), StrokeThickness = thickness,
                 StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round, IsHitTestVisible = false };
         }
         private void BeginText(Point point)

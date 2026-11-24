@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Ink;
@@ -13,14 +14,13 @@ namespace Snapline
     {
         private readonly InkCanvas canvas;
         private readonly ScrollViewer viewer;
-        private readonly Grid stage;
-        private readonly System.Windows.Media.Effects.DropShadowEffect imageShadow = Ui.Shadow(6, 24, .35);
         private readonly TextBlock info;
         private readonly BitmapSource original;
         private readonly AnnotationTools annotations;
         private readonly Button zoomLabel;
         private readonly Slider zoomSlider;
-        private bool updatingZoom;
+        private DispatcherOperation pendingZoom;
+        private bool updatingZoom, saving;
         private bool fit = true;
         private double zoom = 1;
         private int rotation;
@@ -60,10 +60,21 @@ namespace Snapline
             Grid.SetColumn(filename, 1); command.Children.Add(filename);
             var actions = new StackPanel { Orientation = Orientation.Horizontal }; Grid.SetColumn(actions, 2); command.Children.Add(actions);
             if (pinImage != null) AddIcon(actions, "pin", "将当前图片与标注贴到屏幕", delegate { pinImage(RenderEdited()); });
-            var save = AddIcon(actions, "save", "保存旋转及标注到应用副本，原图保留", delegate
+            var save = AddIcon(actions, "save", "保存旋转及标注到应用副本，原图保留", async delegate
             {
-                try { store.Replace(shot, RenderEdited()); Close(); }
-                catch (Exception) { MessageBox.Show(this, "保存失败，请检查文件权限或磁盘空间。", "截图晾衣绳"); }
+                if (saving) return;
+                saving = true; IsEnabled = false;
+                string previousInfo = info.Text;
+                info.Text = "正在保存…";
+                try { await store.ReplaceAsync(shot, RenderEdited()); }
+                catch (Exception ex)
+                {
+                    if (!(ex is IOException || ex is UnauthorizedAccessException)) throw;
+                    MessageBox.Show(this, "保存失败，请检查图片是否仍在晾衣绳上，以及文件权限和磁盘空间。", "截图晾衣绳");
+                    return;
+                }
+                finally { saving = false; IsEnabled = true; info.Text = previousInfo; }
+                Close();
             });
             Ui.Select(save, true);
             AddIcon(actions, "delete", "删除此图片（仅删除应用副本）", delegate
@@ -89,7 +100,8 @@ namespace Snapline
             Action applyLayer = delegate { Native.ApplyLayer(this, store.Settings.Layer); layerButton.ToolTip = "窗口层级：" + Native.LayerName(store.Settings.Layer); };
             store.LayerChanged += applyLayer; SourceInitialized += delegate { applyLayer(); Native.DarkTitleBar(this); };
             Activated += delegate { if (store.Settings.Layer == WindowLayer.Bottom) applyLayer(); };
-            Closed += delegate { store.LayerChanged -= applyLayer; };
+            Closing += delegate(object sender, System.ComponentModel.CancelEventArgs e) { e.Cancel = saving; };
+            Closed += delegate { CancelPendingZoom(); store.LayerChanged -= applyLayer; };
             Topmost = store.Settings.Layer == WindowLayer.Top; ShowActivated = store.Settings.Layer != WindowLayer.Bottom;
             layerButton.ToolTip = "窗口层级：" + Native.LayerName(store.Settings.Layer);
             top.Children.Add(command);
@@ -142,7 +154,7 @@ namespace Snapline
                 filename.Visibility = layout.ActualWidth < 650 ? Visibility.Collapsed : Visibility.Visible;
                 zoomSlider.Visibility = layout.ActualWidth < 650 ? Visibility.Collapsed : Visibility.Visible;
             };
-            stage = new Grid { Margin = new Thickness(24), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            var stage = new Grid { Margin = new Thickness(24), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             stage.Children.Add(canvas);
             viewer = new ScrollViewer { Background = new RadialGradientBrush(Color.FromRgb(49, 50, 51), Color.FromRgb(37, 38, 40)), HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = stage, CanContentScroll = false, PanningMode = PanningMode.Both };
@@ -183,6 +195,7 @@ namespace Snapline
         }
         internal void FitImage()
         {
+            CancelPendingZoom();
             fit = true;
             double width = rotation % 180 == 0 ? canvas.Width : canvas.Height;
             double height = rotation % 180 == 0 ? canvas.Height : canvas.Width;
@@ -191,18 +204,31 @@ namespace Snapline
         }
         internal void ChangeZoom(double value)
         {
-            double old = zoom;
-            double x = viewer.HorizontalOffset + viewer.ViewportWidth / 2, y = viewer.VerticalOffset + viewer.ViewportHeight / 2;
-            fit = false; zoom = Math.Max(Math.Min(.05, zoom), Math.Min(8, value)); UpdateTransform();
-            double ratio = zoom / old;
-            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(delegate
+            fit = false;
+            double next = Math.Max(Math.Min(.05, zoom), Math.Min(8, value));
+            if (next == zoom) return;
+            if (pendingZoom == null)
             {
-                viewer.ScrollToHorizontalOffset(x * ratio - viewer.ViewportWidth / 2);
-                viewer.ScrollToVerticalOffset(y * ratio - viewer.ViewportHeight / 2);
-            }));
+                double startingZoom = zoom;
+                double x = viewer.HorizontalOffset + viewer.ViewportWidth / 2, y = viewer.VerticalOffset + viewer.ViewportHeight / 2;
+                pendingZoom = Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(delegate
+                {
+                    pendingZoom = null;
+                    double ratio = zoom / startingZoom;
+                    viewer.ScrollToHorizontalOffset(x * ratio - viewer.ViewportWidth / 2);
+                    viewer.ScrollToVerticalOffset(y * ratio - viewer.ViewportHeight / 2);
+                }));
+            }
+            zoom = next; UpdateTransform();
+        }
+        private void CancelPendingZoom()
+        {
+            if (pendingZoom == null) return;
+            pendingZoom.Abort(); pendingZoom = null;
         }
         internal void Rotate(int degrees)
         {
+            CancelPendingZoom();
             rotation = (rotation + degrees + 360) % 360;
             if (fit) FitImage(); else { UpdateTransform(); viewer.ScrollToHorizontalOffset(0); viewer.ScrollToVerticalOffset(0); }
         }
@@ -210,16 +236,14 @@ namespace Snapline
         {
             var transform = new TransformGroup(); transform.Children.Add(new RotateTransform(rotation)); transform.Children.Add(new ScaleTransform(zoom, zoom));
             canvas.LayoutTransform = transform;
-            // A shadow surface should stay viewport-sized when inspecting a magnified image.
-            stage.Effect = zoom <= 1 ? imageShadow : null;
+            RenderOptions.SetBitmapScalingMode(canvas, zoom >= 1 ? BitmapScalingMode.NearestNeighbor : BitmapScalingMode.Linear);
             if (info != null) info.Text = string.Format("PNG   ·   {0} × {1}{2}", original.PixelWidth, original.PixelHeight, rotation == 0 ? "" : "   ·   " + rotation + "°");
             if (zoomLabel != null) zoomLabel.Content = string.Format("{0:0.#}%", zoom * 100);
             if (zoomSlider != null) { updatingZoom = true; zoomSlider.Value = Math.Log(Math.Max(.05, zoom)); updatingZoom = false; }
         }
         internal BitmapSource RenderEdited()
         {
-            annotations.CommitText();
-            BitmapSource result = RenderAnnotation(canvas);
+            BitmapSource result = annotations.Render();
             if (rotation == 0) return result;
             var rotated = new TransformedBitmap(result, new RotateTransform(rotation)); rotated.Freeze(); return rotated;
         }
@@ -228,7 +252,7 @@ namespace Snapline
             var button = Ui.IconButton(icon, tip, action); button.Margin = new Thickness(2, 0, 2, 0);
             toolbar.Children.Add(button); return button;
         }
-        internal static BitmapSource RenderAnnotation(InkCanvas canvas)
+        internal static BitmapSource RenderAnnotation(InkCanvas canvas, Int32Rect? region = null)
         {
             // Keep export independent of live WPF layout clips, DPI, transforms, opacity and focus.
             var export = new InkCanvas { Width = canvas.Width, Height = canvas.Height, Background = canvas.Background,
@@ -249,13 +273,21 @@ namespace Snapline
                 }
                 else if (text != null) copy = new TextBlock { Text = text.Text, FontFamily = text.FontFamily, FontSize = text.FontSize, FontWeight = text.FontWeight,
                     FontStyle = text.FontStyle, Foreground = text.Foreground, TextWrapping = text.TextWrapping, MaxWidth = text.MaxWidth };
-                else if (rectangle != null) copy = new System.Windows.Shapes.Rectangle { Width = rectangle.Width, Height = rectangle.Height, Fill = rectangle.Fill, Stroke = rectangle.Stroke, StrokeThickness = rectangle.StrokeThickness };
+                else if (rectangle != null) continue; // The mosaic outline only exists during a drag.
                 else throw new InvalidOperationException("无法导出该标注类型，请先结束文字编辑。");
                 InkCanvas.SetLeft(copy, InkCanvas.GetLeft(element)); InkCanvas.SetTop(copy, InkCanvas.GetTop(element)); export.Children.Add(copy);
             }
             export.Measure(new Size(export.Width, export.Height)); export.Arrange(new Rect(0, 0, export.Width, export.Height)); export.UpdateLayout();
-            var result = new RenderTargetBitmap((int)export.Width, (int)export.Height, 96, 96, PixelFormats.Pbgra32);
-            result.Render(export); result.Freeze(); return result;
+            Int32Rect bounds = region ?? new Int32Rect(0, 0, (int)export.Width, (int)export.Height);
+            Visual visual = export;
+            if (region.HasValue)
+            {
+                var positioned = new ContainerVisual { Offset = new Vector(-bounds.X, -bounds.Y) };
+                positioned.Children.Add(export);
+                visual = positioned;
+            }
+            var result = new RenderTargetBitmap(bounds.Width, bounds.Height, 96, 96, PixelFormats.Pbgra32);
+            result.Render(visual); result.Freeze(); return result;
         }
     }
 }

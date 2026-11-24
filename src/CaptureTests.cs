@@ -64,6 +64,13 @@ namespace Snapline
             check(!mosaicAfter.SequenceEqual(mosaicBefore) && mosaicAfter.Take(96 * 12 * 4).SequenceEqual(mosaicBefore.Take(96 * 12 * 4)), "mosaic pixelates only its region even when preview was zoomed");
             mosaic.Undo(); check(Pixels(Preview.RenderAnnotation(mosaicCanvas)).SequenceEqual(mosaicBefore), "mosaic undo restores every original pixel");
             mosaic.Redo(); check(!Pixels(Preview.RenderAnnotation(mosaicCanvas)).SequenceEqual(mosaicBefore), "mosaic redo restores redaction");
+            mosaic.AddText(new Point(0, 0), "中文");
+            mosaic.AddMark(AnnotationTool.Line, new Point(4, 32), new Point(88, 32));
+            mosaicCanvas.Strokes.Add(new System.Windows.Ink.Stroke(new StylusPointCollection(new[] { new StylusPoint(6, 18), new StylusPoint(75, 57) })));
+            var region = new Int32Rect(9, 6, 59, 70);
+            var reference = new CroppedBitmap(Preview.RenderAnnotation(mosaicCanvas), region);
+            check(Pixels(Preview.RenderAnnotation(mosaicCanvas, region)).SequenceEqual(Pixels(reference)),
+                "mosaic region matches the full composite including earlier text, shapes, ink and mosaic");
             var positioned = new Canvas { Width = 320, Height = 240 };
             positioned.Children.Add(mosaicCanvas); Canvas.SetLeft(mosaicCanvas, 70); Canvas.SetTop(mosaicCanvas, 40);
             positioned.Measure(new Size(320, 240)); positioned.Arrange(new Rect(0, 0, 320, 240)); positioned.UpdateLayout();

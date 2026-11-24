@@ -326,6 +326,7 @@ namespace Snapline
             {
                 var crop = new CroppedBitmap(screen.Image, rect); crop.Freeze();
                 ink = new InkCanvas { Width = rect.Width, Height = rect.Height, Background = new ImageBrush(crop) { Stretch = Stretch.Fill } };
+                RenderOptions.SetBitmapScalingMode(ink, BitmapScalingMode.NearestNeighbor);
                 annotations = new AnnotationTools(ink, crop);
                 annotations.Changed += Redraw;
                 selectionLayer.Children.Clear(); selectionLayer.Children.Add(ink);
@@ -355,10 +356,12 @@ namespace Snapline
             {
                 Canvas.SetLeft(outline, shown.Left); Canvas.SetTop(outline, shown.Top); outline.Width = shown.Width; outline.Height = shown.Height;
             }
+            bool showHandles = selected && !pickingColor && !annotations.HasAnnotations;
+            Point[] handlePoints = showHandles ? HandlePoints() : null;
             for (int i = 0; i < handles.Length; i++)
             {
-                handles[i].Visibility = selected && !pickingColor && !annotations.HasAnnotations ? Visibility.Visible : Visibility.Collapsed;
-                if (selected) { Point p = HandlePoints()[i]; Canvas.SetLeft(handles[i], p.X - 3); Canvas.SetTop(handles[i], p.Y - 3); }
+                handles[i].Visibility = showHandles ? Visibility.Visible : Visibility.Collapsed;
+                if (showHandles) { Point p = handlePoints[i]; Canvas.SetLeft(handles[i], p.X - 3); Canvas.SetTop(handles[i], p.Y - 3); }
             }
             if (ink != null) { Canvas.SetLeft(ink, selection.Left); Canvas.SetTop(ink, selection.Top); }
             selectionLayer.Visibility = dragging ? Visibility.Collapsed : Visibility.Visible;
@@ -391,8 +394,7 @@ namespace Snapline
         }
         internal BitmapSource RenderSelection()
         {
-            annotations.CommitText();
-            return Preview.RenderAnnotation(ink);
+            return annotations.Render();
         }
         private void KeyDownCapture(object sender, KeyEventArgs e)
         {

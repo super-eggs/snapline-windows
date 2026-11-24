@@ -1,17 +1,19 @@
 ## 中文更新
 
-- 修复 GitHub Actions 原生控件识别自检受真实鼠标位置干扰的问题。
-- 正式版本标签可自动构建安装包和便携版，完成安装与卸载检查后发布。
+- 移除预览画布的阴影，放大时保留清晰的像素边缘。
+- 减少拖动形状、连续缩放和应用局部马赛克时的重复绘制。
+- 预览保存改为后台编码与写入，保存期间防止重复触发。
 
 ## English updates
 
-- Fixed a GitHub Actions test for native control detection that depended on the physical cursor position.
-- Version tags now build the installer and portable ZIP, verify installation and uninstallation, and publish the release automatically.
+- Removed the preview canvas shadow and kept pixel edges sharp when zooming in.
+- Reduced rendering work while dragging shapes, scrolling to zoom, and applying a mosaic to part of an image.
+- Moved preview encoding and file writes to the background and prevented repeat clicks during saves.
 
 ## 下载与安装
 
-- **Snapline-Setup-1.0.4-x64.exe** 为 Windows 10/11 x64 安装包。双击安装，从开始菜单启动。
-- **Snapline-Portable-1.0.4-x64.zip** 为免安装版。解压后运行 Snapline.exe。
+- **Snapline-Setup-1.0.5-x64.exe** 为 Windows 10/11 x64 安装包。双击安装，从开始菜单启动。
+- **Snapline-Portable-1.0.5-x64.zip** 为免安装版。解压后运行 Snapline.exe。
 - **SHA256SUMS.txt**：上述文件的 SHA-256 校验值。
 
 安装到当前用户目录，无需管理员权限；可选桌面快捷方式，可从 Windows 设置卸载。卸载保留 `%LOCALAPPDATA%\Snapline` 中的截图和配置。

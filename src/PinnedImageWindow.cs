@@ -124,6 +124,7 @@ namespace Snapline
             var transform = new TransformGroup(); transform.Children.Add(new ScaleTransform(flipX ? -1 : 1, flipY ? -1 : 1));
             transform.Children.Add(new RotateTransform(rotation)); transform.Children.Add(new ScaleTransform(zoom / dpi.M11, zoom / dpi.M22));
             canvas.LayoutTransform = transform;
+            RenderOptions.SetBitmapScalingMode(canvas, zoom >= 1 ? BitmapScalingMode.NearestNeighbor : BitmapScalingMode.Linear);
             Width = (rotation % 180 == 0 ? canvas.Width : canvas.Height) * zoom / dpi.M11 + 2;
             Height = (rotation % 180 == 0 ? canvas.Height : canvas.Width) * zoom / dpi.M22 + 2;
         }
@@ -155,7 +156,7 @@ namespace Snapline
         internal void Flip(bool horizontal) { annotations.CommitText(); if (horizontal) flipX = !flipX; else flipY = !flipY; UpdateSize(); }
         internal BitmapSource RenderImage()
         {
-            annotations.CommitText(); BitmapSource image = Preview.RenderAnnotation(canvas);
+            BitmapSource image = annotations.Render();
             var edit = new TransformGroup(); edit.Children.Add(new ScaleTransform(flipX ? -1 : 1, flipY ? -1 : 1)); edit.Children.Add(new RotateTransform(rotation));
             if (flipX || flipY || rotation != 0) { image = new TransformedBitmap(image, edit); image.Freeze(); }
             return image;

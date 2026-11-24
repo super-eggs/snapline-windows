@@ -264,12 +264,39 @@ namespace Snapline
         internal void Replace(Shot shot, BitmapSource edited)
         {
             if (!Items.Contains(shot) || !Owns(shot.Path)) return;
-            byte[] bytes = Encode(edited);
+            Capture capture = Prepare(edited);
             string temp = shot.Path + ".edit";
-            File.WriteAllBytes(temp, bytes);
+            File.WriteAllBytes(temp, capture.Bytes);
             File.Replace(temp, shot.Path, null);
-            shot.Image = Thumbnail(edited);
-            shot.Fingerprint = Hash(bytes);
+            PublishReplacement(shot, capture);
+        }
+        internal Task<bool> ReplaceAsync(Shot shot, BitmapSource edited)
+        {
+            return Enqueue(async delegate
+            {
+                if (!Items.Contains(shot) || !Owns(shot.Path)) throw new IOException("截图已离开晾衣绳。");
+                string path = shot.Path;
+                string temp = path + ".edit-" + Guid.NewGuid().ToString("N");
+                try
+                {
+                    Capture capture = await worker.Run(delegate
+                    {
+                        Capture prepared = Prepare(edited);
+                        File.WriteAllBytes(temp, prepared.Bytes);
+                        return prepared;
+                    });
+                    if (!Items.Contains(shot)) throw new IOException("截图已离开晾衣绳。");
+                    File.Replace(temp, path, null);
+                    PublishReplacement(shot, capture);
+                    return true;
+                }
+                finally { if (File.Exists(temp)) File.Delete(temp); }
+            });
+        }
+        private void PublishReplacement(Shot shot, Capture capture)
+        {
+            shot.Image = capture.Thumbnail;
+            shot.Fingerprint = capture.Fingerprint;
             Notify();
         }
         internal void SaveSettings()

@@ -420,6 +420,7 @@ namespace Snapline
                     Check(editor.Zoom > 0, "preview zoom button routed event works");
                     editor.ChangeZoom(3);
                     var viewer = Descendants<ScrollViewer>(editorContent).Single(); editorContent.UpdateLayout();
+                    Check(RenderOptions.GetBitmapScalingMode(editCanvas) == BitmapScalingMode.NearestNeighbor, "magnifying the preview displays sharp source pixels");
                     Check(viewer.ExtentWidth > viewer.ViewportWidth || viewer.ExtentHeight > viewer.ViewportHeight, "magnified preview offers scrollable image extent");
                     var zoomOnly = editor.RenderEdited();
                     Check(zoomOnly.PixelWidth == unrotated.PixelWidth && zoomOnly.PixelHeight == unrotated.PixelHeight && Store.Encode(zoomOnly).SequenceEqual(Store.Encode(unrotated)), "zoom does not change saved dimensions or annotation pixels");
@@ -447,6 +448,20 @@ namespace Snapline
                     VerifyLayout(editorContent, 1100, 760, "minimal image preview"); editor.FitImage(); editorContent.UpdateLayout();
                     SaveLayout(editorContent, 1100, 760, 1, Path.Combine(artifacts, "preview-viewer.png"));
                     var deletedShot = previewStore.Items[0];
+                    var saver = new Preview(previewStore, deletedShot, true);
+                    try
+                    {
+                        saver.Rotate(90);
+                        var saved = new System.Threading.Tasks.TaskCompletionSource<bool>();
+                        saver.Closed += delegate { saved.SetResult(true); };
+                        Descendants<Button>((FrameworkElement)saver.Content).Single(button => Equals(button.Tag, "save")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        Check(!saver.IsEnabled, "preview blocks repeat clicks while the edited copy saves");
+                        CollectionTests.Wait(saved.Task);
+                        var savedImage = Store.ReadImage(deletedShot.Path);
+                        Check(savedImage.PixelWidth == 640 && savedImage.PixelHeight == 1000 && deletedShot.Image.PixelHeight == 420,
+                            "preview save persists the rotated copy and updates its shelf thumbnail before closing");
+                    }
+                    finally { saver.Close(); }
                     bool deletionNotified = false, previewClosed = false;
                     previewStore.Changed += delegate { deletionNotified = true; };
                     editor.Closed += delegate { previewClosed = true; };
@@ -456,7 +471,7 @@ namespace Snapline
                     Check(File.ReadAllBytes(previewSource).SequenceEqual(previewSourceBytes), "preview deletion preserves the imported source image");
                     Check(new Store(previewStore.Root).Items.Count == 0, "deleted preview image stays removed after restart");
                 }
-                finally { editor.Close(); }
+                finally { editor.Close(); CollectionTests.Wait(previewStore.StopAsync()); }
                 var bounded = new Store(Path.Combine(root, "bounded"));
                 for (int i = 0; i < Store.Limit + 1; i++)
                 {
