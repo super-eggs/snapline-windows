@@ -11,7 +11,15 @@ namespace Snapline
     {
         private const int ClipboardCannotOpen = unchecked((int)0x800401D0);
 
-        internal static async Task<bool> TryCopyAsync(Action copy)
+        internal static async Task<bool> TryCopyAsync(Action publish, Action persist = null)
+        {
+            if (!await TryClipboardOperationAsync(publish)) return false;
+            // The image can already be pasted. If flushing is busy, retry just that step.
+            if (persist != null) await TryClipboardOperationAsync(persist);
+            return true;
+        }
+
+        private static async Task<bool> TryClipboardOperationAsync(Action copy)
         {
             const int retries = 2;
             for (int attempt = 0; ; attempt++)

@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 
@@ -16,7 +17,6 @@ namespace Snapline
     internal sealed class Shelf : Window, IDisposable
     {
         private readonly Store store;
-        private readonly bool demo;
         private readonly Canvas cards = new Canvas { ClipToBounds = true, IsManipulationEnabled = true };
         private readonly TextBlock status = new TextBlock { Foreground = Ui.LightText, FontSize = 12, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
         private readonly Border statusToast = new Border { Visibility = Visibility.Collapsed, Background = Ui.LightSurface, BorderBrush = Ui.LightEdge,
@@ -26,6 +26,7 @@ namespace Snapline
         internal readonly Button PinButton;
         private readonly List<CardSlot> slots = new List<CardSlot>();
         private readonly Grid clothesline;
+        private readonly TranslateTransform slide = new TranslateTransform();
         private readonly DispatcherTimer scrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         private DateTime lastScrollFrame;
         private double scrollOffset, scrollTarget, contentWidth;
@@ -33,6 +34,7 @@ namespace Snapline
         private double maskWidth;
         private bool maskLeft, maskRight;
         private Border emptyMessage;
+        private TextBlock emptyHint;
         private sealed class CardSlot
         {
             internal Shot Shot;
@@ -45,12 +47,15 @@ namespace Snapline
         internal double ScrollTarget { get { return scrollTarget; } }
         internal double MaxScroll { get { return Math.Max(0, contentWidth + 32 - Width); } }
         private DateTime statusUntil;
-        private readonly DispatcherTimer timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
+        private static readonly TimeSpan HoverInterval = TimeSpan.FromMilliseconds(120);
+        private static readonly TimeSpan ClosingHoverInterval = TimeSpan.FromMilliseconds(16);
+        private readonly DispatcherTimer timer = new DispatcherTimer { Interval = HoverInterval };
         private HwndSource source;
         private IntPtr handle;
-        private DateTime hoverSince = DateTime.MinValue, leaveSince = DateTime.MinValue;
+        private DateTime leaveSince = DateTime.MinValue;
         private DateTime revealedAt;
-        private bool pinned, disposed, registered, manualReveal, busy;
+        private bool pinned, disposed, manualReveal, busy;
+        private bool autoHiding;
         internal bool Busy
         {
             get { return busy; }
@@ -65,9 +70,9 @@ namespace Snapline
         internal event Action Copied;
         internal event Action<System.Windows.Media.Imaging.BitmapSource> PinRequested;
 
-        internal Shelf(Store store, bool demo)
+        internal Shelf(Store store)
         {
-            this.store = store; this.demo = demo;
+            this.store = store;
             Title = "截图晾衣绳"; Width = 1100; Height = 350;
             Icon = AppIcon.WindowImage();
             WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
@@ -75,7 +80,7 @@ namespace Snapline
             ShowInTaskbar = false; Topmost = store.Settings.Layer == WindowLayer.Top; ShowActivated = false;
             FontFamily = Ui.Font; Ui.StyleToolTips(this, true);
             UseLayoutRounding = true; SnapsToDevicePixels = true;
-            var panel = new Grid();
+            var panel = new Grid { RenderTransform = slide };
             panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -121,7 +126,9 @@ namespace Snapline
             Grid.SetRow(clothesline, 1); panel.Children.Add(clothesline);
             statusToast.Child = status; statusToast.Margin = new Thickness(16, 0, 16, 8); statusToast.VerticalAlignment = VerticalAlignment.Bottom;
             Grid.SetRowSpan(statusToast, 3); Panel.SetZIndex(statusToast, 2); panel.Children.Add(statusToast);
-            Content = new Border { Background = Brushes.Transparent, Child = panel };
+            // Clip the sliding panel at the monitor's working-area edge while keeping the hover bounds fixed.
+            Content = new Border { Background = Brushes.Transparent, Child = panel, ClipToBounds = true };
+            IsVisibleChanged += delegate { if (!IsVisible) ResetSlide(); };
             AllowDrop = true;
             DragOver += delegate(object sender, DragEventArgs e) { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
             Drop += delegate(object sender, DragEventArgs e)
@@ -141,14 +148,16 @@ namespace Snapline
                 handle = new WindowInteropHelper(this).Handle;
                 source = HwndSource.FromHwnd(handle); source.AddHook(Hook);
                 ApplyLayer();
-                if (!demo) registered = Native.RegisterHotKey(handle, 1, 0x4003, 0x54);
-                if (!demo && !registered) Status("Ctrl+Alt+T 已被占用，请从托盘或屏幕顶部唤出。");
             };
             store.Changed += Changed;
             store.LayerChanged += ApplyLayer;
             Activated += delegate { if (store.Settings.Layer == WindowLayer.Bottom) ApplyLayer(); };
             timer.Tick += delegate { Tick(); };
-            timer.Start();
+            IsVisibleChanged += delegate
+            {
+                if (IsVisible) timer.Start();
+                else timer.Stop();
+            };
             scrollTimer.Tick += delegate
             {
                 DateTime now = DateTime.UtcNow;
@@ -164,7 +173,6 @@ namespace Snapline
         }
         private IntPtr Hook(IntPtr hwnd, int message, IntPtr wparam, IntPtr lparam, ref bool handled)
         {
-            if (message == 0x0312 && wparam.ToInt32() == 1) { Toggle(); handled = true; }
             if (message == 0x020E && IsVisible)
             {
                 ScrollBy(unchecked((short)(wparam.ToInt64() >> 16)) * .9); handled = true;
@@ -235,8 +243,50 @@ namespace Snapline
             Native.Point point; Native.GetCursorPos(out point);
             var screen = Forms.Screen.FromPoint(new System.Drawing.Point(point.X, point.Y));
             BeginReveal(activate, DateTime.UtcNow);
+            bool slideIn = !activate && SystemParameters.ClientAreaAnimation && (!IsVisible || autoHiding);
+            if (!slideIn) ResetSlide();
+            else if (!IsVisible) slide.Y = -Height;
             Show(); Position(screen);
+            if (slideIn) AnimateSlide(false);
             if (activate && store.Settings.Layer != WindowLayer.Bottom) Activate();
+        }
+        private void ResetSlide()
+        {
+            autoHiding = false;
+            timer.Interval = HoverInterval;
+            slide.Y = 0;
+            slide.BeginAnimation(TranslateTransform.YProperty, null);
+        }
+        private void AnimateSlide(bool closing)
+        {
+            autoHiding = closing;
+            timer.Interval = closing ? ClosingHoverInterval : HoverInterval;
+            double start = slide.Y;
+            double destination = closing ? -Height : 0;
+            // A short reversal should not take as long as the full trip.
+            double distanceRatio = Math.Min(1, Math.Abs(destination - start) / Height);
+            double milliseconds = Math.Max(90, (closing ? 260 : 300) * Math.Sqrt(distanceRatio));
+            var animation = new DoubleAnimation(start, destination, TimeSpan.FromMilliseconds(milliseconds))
+            {
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+            };
+            if (closing) animation.Completed += FinishAutoHide;
+            else animation.Completed += delegate { ResetSlide(); };
+            // Keep the current offset in place while WPF schedules the next animation frame.
+            slide.Y = start;
+            slide.BeginAnimation(TranslateTransform.YProperty, animation);
+        }
+        private void CancelAutoHide()
+        {
+            BeginReveal(false, DateTime.UtcNow);
+            AnimateSlide(false);
+        }
+        private void FinishAutoHide(object sender, EventArgs e)
+        {
+            if (!autoHiding || disposed) return;
+            Native.Point cursor;
+            if (Busy || pinned || (Native.GetCursorPos(out cursor) && ContainsCursor(cursor))) CancelAutoHide();
+            else Hide();
         }
         internal void Toggle() { if (IsVisible) Hide(); else Reveal(true); }
         internal void Status(string text)
@@ -247,7 +297,7 @@ namespace Snapline
         internal void BeginReveal(bool manual, DateTime now)
         {
             manualReveal = manual; revealedAt = now;
-            leaveSince = DateTime.MinValue; hoverSince = DateTime.MinValue;
+            leaveSince = DateTime.MinValue;
         }
         internal bool AutoHideDue(bool inside, DateTime now)
         {
@@ -263,40 +313,39 @@ namespace Snapline
         private void Tick()
         {
             if (statusToast.Visibility == Visibility.Visible && DateTime.UtcNow >= statusUntil) statusToast.Visibility = Visibility.Collapsed;
-            if (Busy || disposed) return;
+            if (Busy || disposed || !IsVisible) return;
             Native.Point cursor; if (!Native.GetCursorPos(out cursor)) return;
-            var screen = Forms.Screen.FromPoint(new System.Drawing.Point(cursor.X, cursor.Y));
-            if (!IsVisible)
+            bool inside = ContainsCursor(cursor);
+            if (autoHiding)
             {
-                if (demo) return;
-                bool nearTop = cursor.Y >= screen.WorkingArea.Top && cursor.Y <= screen.WorkingArea.Top + 3;
-                bool central = Math.Abs(cursor.X - (screen.WorkingArea.Left + screen.WorkingArea.Width / 2)) < Math.Min(500, screen.WorkingArea.Width / 2 - 20);
-                if (!nearTop || !central || Native.Fullscreen(screen, handle)) { hoverSince = DateTime.MinValue; return; }
-                if (hoverSince == DateTime.MinValue) hoverSince = DateTime.UtcNow;
-                if ((DateTime.UtcNow - hoverSince).TotalMilliseconds >= 420) { Reveal(false); hoverSince = DateTime.MinValue; }
+                if (inside) CancelAutoHide();
+                return;
             }
-            else
-            {
-                Native.Rect bounds;
-                if (!Native.GetWindowRect(handle, out bounds)) return;
-                UpdateEdgeHover(clothesline.PointFromScreen(new Point(cursor.X, cursor.Y)));
-                bool inside = cursor.X >= bounds.Left && cursor.X <= bounds.Right && cursor.Y >= bounds.Top && cursor.Y <= bounds.Bottom;
-                if (AutoHideDue(inside, DateTime.UtcNow)) Hide();
-            }
+            UpdateEdgeHover(clothesline.PointFromScreen(new Point(cursor.X, cursor.Y)));
+            if (!AutoHideDue(inside, DateTime.UtcNow)) return;
+            if (SystemParameters.ClientAreaAnimation) AnimateSlide(true);
+            else Hide();
+        }
+        private bool ContainsCursor(Native.Point cursor)
+        {
+            Native.Rect bounds;
+            return Native.GetWindowRect(handle, out bounds)
+                && cursor.X >= bounds.Left && cursor.X <= bounds.Right && cursor.Y >= bounds.Top && cursor.Y <= bounds.Bottom;
         }
         internal void RenderCards()
         {
+            var images = store.Items.Where(shot => shot.Image != null).ToList();
             CardSlot anchor = scrollOffset > .5 || scrollTarget > .5
-                ? slots.FirstOrDefault(slot => slot.X + slot.Width > scrollOffset + 16 && store.Items.Contains(slot.Shot)) : null;
+                ? slots.FirstOrDefault(slot => slot.X + slot.Width > scrollOffset + 16 && images.Contains(slot.Shot)) : null;
             double anchorX = anchor == null ? 0 : anchor.X - scrollOffset;
             double pending = scrollTarget - scrollOffset;
             var previous = slots.ToDictionary(slot => slot.Shot);
             foreach (CardSlot slot in slots)
-                if (!store.Items.Contains(slot.Shot)) cards.Children.Remove(slot.View);
+                if (!images.Contains(slot.Shot)) cards.Children.Remove(slot.View);
             slots.Clear();
-            contentWidth = store.Items.Sum(shot => ImageSize(shot).Width + 8 + 24);
+            contentWidth = images.Sum(shot => ImageSize(shot).Width + 8 + 24);
             double left = MaxScroll > 0 ? 16 : (Width - contentWidth) / 2;
-            foreach (Shot shot in store.Items)
+            foreach (Shot shot in images)
             {
                 double cardWidth = ImageSize(shot).Width + 8;
                 CardSlot slot;
@@ -317,24 +366,28 @@ namespace Snapline
             }
             scrollOffset = Math.Max(0, Math.Min(MaxScroll, scrollOffset));
             scrollTarget = Math.Max(0, Math.Min(MaxScroll, scrollTarget));
-            if (store.Items.Count != 0 && emptyMessage != null)
+            if (images.Count != 0 && emptyMessage != null)
             {
-                cards.Children.Remove(emptyMessage); emptyMessage = null;
+                cards.Children.Remove(emptyMessage); emptyMessage = null; emptyHint = null;
             }
-            if (store.Items.Count == 0 && emptyMessage == null)
+            if (images.Count == 0 && emptyMessage == null)
             {
-                var hint = new TextBlock { Text = "让截图，随手可取", Foreground = Ui.LightText, FontSize = 14, FontWeight = FontWeights.Medium,
+                emptyHint = new TextBlock { Foreground = Ui.LightText, FontSize = 14, FontWeight = FontWeights.Medium,
                     HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 5) };
                 var shortcut = new TextBlock { Text = "Win + Shift + S  截图后自动收集", Foreground = Ui.LightMuted, FontSize = 11,
                     HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
                 var empty = MakeButton("导入图片", "也可以使用 Win+Shift+S 截图", ImportDialog);
                 empty.HorizontalAlignment = HorizontalAlignment.Center; empty.Margin = new Thickness(0);
-                var message = new StackPanel(); message.Children.Add(hint); message.Children.Add(shortcut); message.Children.Add(empty);
+                var message = new StackPanel(); message.Children.Add(emptyHint); message.Children.Add(shortcut); message.Children.Add(empty);
                 emptyMessage = new Border { Width = 240, Background = Ui.LightSurface, BorderBrush = Ui.LightEdge, BorderThickness = new Thickness(1),
                     CornerRadius = new CornerRadius(12), Padding = new Thickness(18, 16, 18, 16), Child = message, Effect = Ui.Shadow(4, 16, .14) };
                 Canvas.SetTop(emptyMessage, 44); cards.Children.Add(emptyMessage);
             }
-            if (emptyMessage != null) Canvas.SetLeft(emptyMessage, (Width - emptyMessage.Width) / 2);
+            if (emptyMessage != null)
+            {
+                emptyHint.Text = store.ThumbnailsPending ? "正在加载截图…" : "让截图，随手可取";
+                Canvas.SetLeft(emptyMessage, (Width - emptyMessage.Width) / 2);
+            }
             PositionCards();
         }
         private void PositionCards()
@@ -454,7 +507,6 @@ namespace Snapline
         public void Dispose()
         {
             if (disposed) return; disposed = true; timer.Stop(); scrollTimer.Stop(); store.Changed -= Changed; store.LayerChanged -= ApplyLayer;
-            if (registered) Native.UnregisterHotKey(handle, 1);
             if (source != null) source.RemoveHook(Hook);
         }
     }

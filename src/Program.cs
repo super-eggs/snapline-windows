@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -18,9 +19,16 @@ namespace Snapline
         private uint clipboardSequence;
         private uint pendingClipboardSequence;
         private DateTime clipboardRetryAt;
-        private bool clipboardBusy, exiting;
+        private bool clipboardBusy, copyingCapture, exiting;
         private Store store;
         private Shelf shelf;
+        private HwndSource hotkeySource;
+        private CaptureHotkey shelfHotkey;
+        private DispatcherTimer shelfHoverTimer;
+        private DateTime shelfHoverSince;
+        private string shelfStatus;
+        private DateTime shelfStatusUntil;
+        private bool loadingThumbnails;
         private CaptureHotkey captureHotkey;
         private CaptureHotkey pinHotkey, togglePinsHotkey;
         private PinBoard pins;
@@ -67,64 +75,39 @@ namespace Snapline
                 if (e.Exception is IOException || e.Exception is UnauthorizedAccessException || e.Exception is System.Runtime.InteropServices.ExternalException)
                 {
                     e.Handled = true;
-                    if (app.shelf != null) app.shelf.Status("操作暂未完成，请重试；可通过托盘打开截图文件夹。");
+                    app.ShowShelfStatus("操作暂未完成，请重试；可通过托盘打开截图文件夹。");
                 }
             };
             app.Startup += delegate { app.Initialize(); };
             try { return app.Run(); }
             finally { app.mutex.ReleaseMutex(); app.mutex.Dispose(); }
         }
-        private async void Initialize()
+        private void Initialize()
         {
             string data = demo ? Path.Combine(Path.GetTempPath(), "Snapline-demo-" + Guid.NewGuid().ToString("N"))
                 : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Snapline");
             if (demo) demoRoot = data;
-            store = new Store(data, demo);
-            shelf = new Shelf(store, demo);
-            if (pinDemo) shelf.ShowInTaskbar = true;
+            store = new Store(data, deferHistory: !demo);
             pins = new PinBoard(CopyPinnedImage, CopyPickedColor, captureDemo || pinDemo);
-            shelf.PinRequested += delegate(BitmapSource image) { ShowPin(image); };
-            MainWindow = shelf;
-            store.Error += delegate(string text) { Dispatcher.BeginInvoke(new Action(delegate { shelf.Status(text); })); };
-            shelf.Copied += delegate { clipboardSequence = Native.GetClipboardSequenceNumber(); };
-            shelf.Show();
-            Task loading = demo ? Task.FromResult(true) : store.LoadAsync();
+            store.Error += delegate(string text) { Dispatcher.BeginInvoke(new Action(delegate { ShowShelfStatus(text); })); };
+            SetupTray();
             if (demo)
             {
+                EnsureShelf();
+                if (pinDemo) shelf.ShowInTaskbar = true;
                 for (int i = 0; i < 3; i++) store.Add(DemoImage(i));
                 shelf.Reveal(true);
             }
             else
             {
-                shelf.Hide();
+                SetupResidentEntry();
                 SetupCollector();
                 clipboardSequence = Native.GetClipboardSequenceNumber();
                 clipboardTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
                 clipboardTimer.Tick += delegate { CollectClipboard(); };
                 clipboardTimer.Start();
             }
-            SetupTray();
-            if (!demo)
-            {
-                captureHotkey = new CaptureHotkey(shelf, StartCapture);
-                if (!captureHotkey.Register(store.Settings.CaptureHotkey))
-                {
-                    tray.BalloonTipTitle = "截图快捷键未启用";
-                    tray.BalloonTipText = store.Settings.CaptureHotkey + " 已被占用或无效，请在托盘“截图快捷键”中修改；仍可点击“截图”使用。";
-                    tray.ShowBalloonTip(5000);
-                }
-                pinHotkey = new CaptureHotkey(shelf, PastePin, 4);
-                togglePinsHotkey = new CaptureHotkey(shelf, delegate { if (!shortcutDialogOpen) pins.ToggleAll(); }, 6);
-                bool pasteRegistered = pinHotkey.Register(store.Settings.PinHotkey), toggleRegistered = togglePinsHotkey.Register(store.Settings.TogglePinsHotkey);
-                if (!pasteRegistered || !toggleRegistered)
-                {
-                    tray.BalloonTipTitle = "部分贴图快捷键未启用";
-                    tray.BalloonTipText = "贴图或隐藏贴图快捷键已被占用，可从托盘使用，或修改相应快捷键。"; tray.ShowBalloonTip(5000);
-                }
-            }
-            try { await loading; }
-            catch (Exception) { shelf.Status("历史图片未能加载，可通过托盘打开收集文件夹。"); }
-            if (captureDemo) StartCapture();
+            if (captureDemo) StartCapture(false);
             if (pinDemo)
             {
                 pinHotkey = new CaptureHotkey(shelf, PastePin, 4);
@@ -226,7 +209,7 @@ namespace Snapline
                         var content = (FrameworkElement)shelf.Content; content.UpdateLayout();
                         // Export an independent layout so compositor caches cannot omit
                         // transparent-window visuals in RenderTargetBitmap.
-                        var exportShelf = new Shelf(store, true);
+                        var exportShelf = new Shelf(store);
                         exportShelf.ApplyLayout(shelf.Width);
                         var exportContent = (FrameworkElement)exportShelf.Content;
                         exportContent.Measure(new Size(shelf.Width, shelf.Height));
@@ -245,16 +228,106 @@ namespace Snapline
                 smokeTimer.Start();
             }
         }
-        private async void StartCapture()
+        private void SetupResidentEntry()
+        {
+            // The message window receives hotkeys while no shelf has been created.
+            hotkeySource = CaptureHotkey.CreateMessageSource();
+            shelfHotkey = new CaptureHotkey(hotkeySource, ToggleShelf, 8);
+            if (!shelfHotkey.Register("Ctrl+Alt+T"))
+            {
+                tray.BalloonTipTitle = "晾衣绳快捷键未启用";
+                tray.BalloonTipText = "Ctrl+Alt+T 已被占用，可从托盘或屏幕顶部唤出。";
+                tray.ShowBalloonTip(5000);
+            }
+            captureHotkey = new CaptureHotkey(hotkeySource, delegate { StartCapture(false); });
+            if (!captureHotkey.Register(store.Settings.CaptureHotkey))
+            {
+                tray.BalloonTipTitle = "截图快捷键未启用";
+                tray.BalloonTipText = store.Settings.CaptureHotkey + " 已被占用或无效，请在托盘“截图快捷键”中修改；仍可点击“截图”使用。";
+                tray.ShowBalloonTip(5000);
+            }
+            pinHotkey = new CaptureHotkey(hotkeySource, PastePin, 4);
+            togglePinsHotkey = new CaptureHotkey(hotkeySource, delegate { if (!shortcutDialogOpen) pins.ToggleAll(); }, 6);
+            bool pasteRegistered = pinHotkey.Register(store.Settings.PinHotkey), toggleRegistered = togglePinsHotkey.Register(store.Settings.TogglePinsHotkey);
+            if (!pasteRegistered || !toggleRegistered)
+            {
+                tray.BalloonTipTitle = "部分贴图快捷键未启用";
+                tray.BalloonTipText = "贴图或隐藏贴图快捷键已被占用，可从托盘使用，或修改相应快捷键。";
+                tray.ShowBalloonTip(5000);
+            }
+            shelfHoverTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
+            shelfHoverTimer.Tick += CheckShelfHover;
+            shelfHoverTimer.Start();
+        }
+
+        private void CheckShelfHover(object sender, EventArgs e)
+        {
+            Native.Point cursor;
+            if (exiting || captureStarting || shortcutDialogOpen || tray.ContextMenuStrip.Visible
+                || (shelf != null && (shelf.IsVisible || shelf.Busy)) || !Native.GetCursorPos(out cursor))
+            {
+                shelfHoverSince = DateTime.MinValue;
+                return;
+            }
+            var screen = Forms.Screen.FromPoint(new System.Drawing.Point(cursor.X, cursor.Y));
+            var area = screen.WorkingArea;
+            bool nearTop = cursor.Y >= area.Top && cursor.Y <= area.Top + 3;
+            bool central = Math.Abs(cursor.X - (area.Left + area.Width / 2)) < Math.Min(500, area.Width / 2 - 20);
+            if (!nearTop || !central || Native.Fullscreen(screen, shelf == null ? IntPtr.Zero : new WindowInteropHelper(shelf).Handle))
+            {
+                shelfHoverSince = DateTime.MinValue;
+                return;
+            }
+            var now = DateTime.UtcNow;
+            if (shelfHoverSince == DateTime.MinValue) shelfHoverSince = now;
+            if ((now - shelfHoverSince).TotalMilliseconds >= 420)
+            {
+                shelfHoverSince = DateTime.MinValue;
+                EnsureShelf().Reveal(false);
+            }
+        }
+
+        private Shelf EnsureShelf()
+        {
+            if (shelf != null) return shelf;
+            shelf = new Shelf(store);
+            if (shelfStatus != null && DateTime.UtcNow < shelfStatusUntil) shelf.Status(shelfStatus);
+            shelfStatus = null;
+            shelf.PinRequested += ShowPin;
+            shelf.Copied += delegate { clipboardSequence = Native.GetClipboardSequenceNumber(); };
+            shelf.IsVisibleChanged += async delegate
+            {
+                if (!shelf.IsVisible || loadingThumbnails || !store.ThumbnailsPending || exiting) return;
+                loadingThumbnails = true;
+                try { await store.LoadThumbnailsAsync(); }
+                catch (Exception) { ShowShelfStatus("历史图片未能加载，可收起后重新打开晾衣绳，或通过托盘打开收集文件夹。"); }
+                finally { loadingThumbnails = false; }
+            };
+            MainWindow = shelf;
+            return shelf;
+        }
+
+        private void ToggleShelf()
+        {
+            if (!exiting && !captureStarting && !shortcutDialogOpen) EnsureShelf().Toggle();
+        }
+
+        private void ShowShelfStatus(string text)
+        {
+            if (shelf != null) shelf.Status(text);
+            else { shelfStatus = text; shelfStatusUntil = DateTime.UtcNow.AddSeconds(3); }
+        }
+
+        private async void StartCapture(bool fromTray)
         {
             if (exiting || shortcutDialogOpen || captureStarting || captureWindow != null) return;
             captureStarting = true;
-            bool restoreShelf = shelf.IsVisible;
-            shelf.Busy = true; shelf.Hide();
+            bool restoreShelf = shelf != null && shelf.IsVisible;
+            if (shelf != null) { shelf.Busy = true; shelf.Hide(); }
             try
             {
-                // Let the desktop compositor remove our shelf and the tray menu first.
-                await Task.Delay(160);
+                // Wait for the compositor only when our own UI needs to disappear.
+                if (restoreShelf || fromTray || tray.ContextMenuStrip.Visible) await Task.Delay(160);
                 if (exiting) return;
                 ScreenCapture image;
                 if (demo)
@@ -264,16 +337,12 @@ namespace Snapline
                     image = new ScreenCapture { Bounds = bounds, Image = sample };
                     image.Windows.Add(new CaptureTarget(IntPtr.Zero, new Rect(100, 100, Math.Max(1, bounds.Width - 300), Math.Max(1, bounds.Height - 300))));
                 }
-                else image = ScreenCapture.Take();
+                else image = await Task.Run(delegate { return ScreenCapture.Take(); });
+                if (exiting) return;
                 captureWindow = new CaptureWindow(image, async delegate(BitmapSource result)
                 {
                     await store.AddAsync(delegate { return result; });
-                    if (!captureDemo && !await ClipboardImages.TryCopyAsync(delegate
-                    {
-                        if (exiting) return;
-                        Clipboard.SetImage(result);
-                        clipboardSequence = Native.GetClipboardSequenceNumber();
-                    })) return false;
+                    if (!captureDemo && !exiting && !await CopyCaptureAsync(result)) return false;
                     if (tray != null && !exiting)
                     {
                         tray.BalloonTipTitle = "截图已完成";
@@ -292,10 +361,32 @@ namespace Snapline
             }
             finally
             {
-                captureWindow = null; captureStarting = false; shelf.Busy = false;
+                captureWindow = null; captureStarting = false;
+                if (shelf != null) shelf.Busy = false;
                 if (restoreShelf && !exiting) shelf.Reveal(false);
                 if (captureDemo && !pins.HasImages) Shutdown();
             }
+        }
+        private async Task<bool> CopyCaptureAsync(BitmapSource image)
+        {
+            var data = new DataObject();
+            data.SetImage(image);
+            copyingCapture = true;
+            try
+            {
+                return await ClipboardImages.TryCopyAsync(delegate
+                {
+                    if (exiting) return;
+                    Clipboard.SetDataObject(data, false);
+                    clipboardSequence = Native.GetClipboardSequenceNumber();
+                }, delegate
+                {
+                    if (exiting || !Clipboard.IsCurrent(data)) return;
+                    Clipboard.Flush();
+                    clipboardSequence = Native.GetClipboardSequenceNumber();
+                });
+            }
+            finally { copyingCapture = false; }
         }
         private void CopyPickedColor(string value)
         {
@@ -359,7 +450,7 @@ namespace Snapline
         }
         private async void CollectClipboard()
         {
-            if (clipboardBusy || exiting) return;
+            if (clipboardBusy || copyingCapture || exiting) return;
             uint sequence = Native.GetClipboardSequenceNumber();
             bool retryPending = store.HasPendingClipboard;
             if (!retryPending && sequence == clipboardSequence) return;
@@ -392,12 +483,12 @@ namespace Snapline
                 {
                     pendingClipboardSequence = sequence;
                     clipboardRetryAt = DateTime.UtcNow.AddSeconds(5);
-                    shelf.Status("图片尚未保存，已保留并等待重试，请检查磁盘空间与权限。");
+                    ShowShelfStatus("图片尚未保存，已保留并等待重试，请检查磁盘空间与权限。");
                 }
                 else
                 {
                     if (Native.GetClipboardSequenceNumber() == sequence) clipboardSequence = sequence;
-                    shelf.Status("剪贴板图片无法收集，可尝试手动导入。");
+                    ShowShelfStatus("剪贴板图片无法收集，可尝试手动导入。");
                 }
             }
             finally { clipboardBusy = false; }
@@ -413,7 +504,7 @@ namespace Snapline
             checkUpdates.Enabled = !demo;
             checkUpdates.Click += async delegate { await CheckForUpdatesAsync(checkUpdates); };
             menu.Items.Add(new Forms.ToolStripSeparator());
-            var capture = menu.Items.Add("截图", null, delegate { StartCapture(); });
+            var capture = menu.Items.Add("截图", null, delegate { StartCapture(true); });
             capture.Enabled = !demo;
             var configureCapture = menu.Items.Add("截图快捷键…", null, delegate
             {
@@ -435,8 +526,8 @@ namespace Snapline
                 paste.Text = "贴到屏幕    " + store.Settings.PinHotkey + (pinHotkey != null && !pinHotkey.Registered ? "（快捷键未启用）" : "");
                 togglePins.Text = "隐藏 / 显示全部贴图    " + store.Settings.TogglePinsHotkey + (togglePinsHotkey != null && !togglePinsHotkey.Registered ? "（快捷键未启用）" : "");
             };
-            menu.Items.Add("显示 / 隐藏    Ctrl+Alt+T", null, delegate { shelf.Toggle(); });
-            menu.Items.Add("导入图片…", null, delegate { shelf.ImportDialog(); });
+            menu.Items.Add("显示 / 隐藏    Ctrl+Alt+T", null, delegate { ToggleShelf(); });
+            menu.Items.Add("导入图片…", null, delegate { EnsureShelf().ImportDialog(); });
             var layers = new Forms.ToolStripMenuItem("窗口层级");
             foreach (WindowLayer layer in Enum.GetValues(typeof(WindowLayer)))
             {
@@ -539,10 +630,10 @@ namespace Snapline
             });
             menu.Items.Add(new Forms.ToolStripSeparator());
             menu.Items.Add("退出", null, async delegate { await ExitAsync(); });
-            menu.Opening += delegate { shelf.Busy = true; };
-            menu.Closed += delegate { shelf.Busy = false; };
+            menu.Opening += delegate { if (shelf != null) shelf.Busy = true; };
+            menu.Closed += delegate { if (shelf != null) shelf.Busy = false; };
             tray.ContextMenuStrip = menu;
-            tray.DoubleClick += delegate { shelf.Toggle(); };
+            tray.DoubleClick += delegate { ToggleShelf(); };
             tray.Visible = true;
             if (!demo && !startup) { tray.BalloonTipTitle = "截图晾衣绳已就绪"; tray.BalloonTipText = store.Settings.CaptureHotkey + " 截图取色；" + store.Settings.PinHotkey + " 贴图；Ctrl+Alt+T 展开晾衣绳。"; tray.ShowBalloonTip(4000); }
         }
@@ -650,7 +741,8 @@ namespace Snapline
             if (clipboardTimer != null) clipboardTimer.Stop();
             if (captureWindow != null) captureWindow.Close();
             if (collector != null) collector.Dispose();
-            shelf.IsEnabled = false; tray.Visible = false;
+            if (shelf != null) shelf.IsEnabled = false;
+            tray.Visible = false;
             await store.StopAsync();
             Shutdown();
         }
@@ -681,10 +773,13 @@ namespace Snapline
         protected override void OnExit(ExitEventArgs e)
         {
             if (clipboardTimer != null) clipboardTimer.Stop();
+            if (shelfHoverTimer != null) shelfHoverTimer.Stop();
             if (collector != null) collector.Dispose();
             if (captureHotkey != null) captureHotkey.Dispose();
             if (pinHotkey != null) pinHotkey.Dispose();
             if (togglePinsHotkey != null) togglePinsHotkey.Dispose();
+            if (shelfHotkey != null) shelfHotkey.Dispose();
+            if (hotkeySource != null) hotkeySource.Dispose();
             if (pins != null) pins.Dispose();
             if (pinWorker != null) pinWorker.Dispose();
             if (shelf != null) shelf.Dispose();

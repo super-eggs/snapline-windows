@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Forms = System.Windows.Forms;
 
@@ -18,6 +19,7 @@ namespace Snapline
     internal sealed class ScreenCapture
     {
         internal BitmapSource Image;
+        internal BitmapSource DimmedImage;
         internal System.Drawing.Rectangle Bounds;
         internal readonly List<CaptureTarget> Windows = new List<CaptureTarget>();
         internal static ScreenCapture Take()
@@ -37,7 +39,30 @@ namespace Snapline
                 return true;
             }, IntPtr.Zero);
             capture.Image = CapturePixels(bounds);
+            capture.DimmedImage = DimDesktop(capture.Image);
             return capture;
+        }
+        internal static BitmapSource DimDesktop(BitmapSource image)
+        {
+            BitmapSource pixels = image.Format == PixelFormats.Bgra32 ? image : new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
+            int stride = image.PixelWidth * 4, rows = Math.Min(32, image.PixelHeight);
+            var buffer = new byte[stride * rows];
+            var result = new WriteableBitmap(image.PixelWidth, image.PixelHeight, 96, 96, PixelFormats.Bgra32, null);
+            for (int y = 0; y < image.PixelHeight; y += rows)
+            {
+                var rect = new Int32Rect(0, y, image.PixelWidth, Math.Min(rows, image.PixelHeight - y));
+                pixels.CopyPixels(rect, buffer, stride, 0);
+                for (int i = 0; i < rect.Height * stride; i += 4)
+                {
+                    int factor = buffer[i + 3] * 125;
+                    buffer[i] = (byte)((buffer[i] * factor + 32512) / 65025);
+                    buffer[i + 1] = (byte)((buffer[i + 1] * factor + 32512) / 65025);
+                    buffer[i + 2] = (byte)((buffer[i + 2] * factor + 32512) / 65025);
+                    buffer[i + 3] = 255;
+                }
+                result.WritePixels(rect, buffer, stride, 0);
+            }
+            result.Freeze(); return result;
         }
         internal static BitmapSource CapturePixels(System.Drawing.Rectangle bounds)
         {

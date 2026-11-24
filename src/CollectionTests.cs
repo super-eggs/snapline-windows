@@ -89,6 +89,20 @@ namespace Snapline
                     check(!duplicate.Result && restored.Items.Count == 2, "startup loading precedes queued collection and restores persisted fingerprints");
                 }
                 finally { Wait(restored.StopAsync()); }
+                var deferred = new Store(store.Root, deferHistory: true);
+                try
+                {
+                    Wait(deferred.AddAsync(delegate { return null; }));
+                    check(deferred.Items.Count == 0 && deferred.ThumbnailsPending, "idle store and non-image clipboard changes defer history loading");
+                    var duplicate = deferred.ImportAsync(first);
+                    Wait(duplicate);
+                    check(!duplicate.Result && deferred.Items.Count == 2 && deferred.Items.All(shot => shot.Image == null),
+                        "first background save restores deduplication without decoding history thumbnails");
+                    Wait(deferred.LoadThumbnailsAsync());
+                    check(!deferred.ThumbnailsPending && deferred.Items.Count == 2 && deferred.Items.All(shot => shot.Image.IsFrozen),
+                        "opening a deferred shelf loads frozen thumbnails without duplicating history");
+                }
+                finally { Wait(deferred.StopAsync()); }
                 Task<bool> invalid = store.ImportAsync(Path.Combine(root, "missing.png"));
                 Task<bool> afterFailure = store.AddAsync(delegate { return App.DemoImage(2); });
                 try { Wait(invalid); check(false, "missing input must fail"); } catch (FileNotFoundException) { }

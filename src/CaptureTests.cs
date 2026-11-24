@@ -165,6 +165,16 @@ namespace Snapline
                 Native.UnregisterHotKey(new WindowInteropHelper(probe).Handle, 9);
             }
             finally { probe.Close(); }
+            using (var source = CaptureHotkey.CreateMessageSource())
+            {
+                int fired = 0;
+                using (var hotkey = new CaptureHotkey(source, delegate { fired++; }))
+                {
+                    bool registered = hotkey.Register("Ctrl+Alt+Shift+F23");
+                    Native.SendMessage(source.Handle, 0x0312, new IntPtr(2), IntPtr.Zero);
+                    check(registered && fired == 1, "native hotkey works before creating any shelf window");
+                }
+            }
         }
         private static void VerifyClipboardRetry(Action<bool, string> check)
         {
@@ -194,6 +204,24 @@ namespace Snapline
             });
             CollectionTests.Wait(failed);
             check(!failed.Result && attempts == 1, "capture copy reports clipboard access denial without retries");
+
+            int publishes = 0, flushes = 0;
+            var flushRecovered = ClipboardImages.TryCopyAsync(delegate { publishes++; }, delegate
+            {
+                if (++flushes < 3) throw new COMException("simulated busy clipboard after publishing", cannotOpenClipboard);
+            });
+            CollectionTests.Wait(flushRecovered);
+            check(flushRecovered.Result && publishes == 1 && flushes == 3,
+                "capture retries clipboard persistence without overwriting the published clipboard image");
+
+            publishes = 0; flushes = 0;
+            var pasteable = ClipboardImages.TryCopyAsync(delegate { publishes++; }, delegate
+            {
+                flushes++; throw new COMException("simulated busy clipboard after publishing", cannotOpenClipboard);
+            });
+            CollectionTests.Wait(pasteable);
+            check(pasteable.Result && publishes == 1 && flushes == 3,
+                "capture is reported as pasteable after publishing even if clipboard persistence remains busy");
         }
         private static void VerifyCompactToolbar(BitmapSource original, string artifacts, Action<bool, string> check)
         {
@@ -256,9 +284,20 @@ namespace Snapline
                 CollectionTests.Wait(Task.Delay(250));
                 Native.Rect bounds; Native.GetWindowRect(new WindowInteropHelper(fixture).Handle, out bounds);
                 // Read only a small patch of this opaque synthetic test window.
-                var image = ScreenCapture.CapturePixels(new System.Drawing.Rectangle(bounds.Left + 30, bounds.Top + 30, 16, 16));
+                var patch = new System.Drawing.Rectangle(bounds.Left + 30, bounds.Top + 30, 16, 16);
+                var prepared = Task.Run(delegate
+                {
+                    var captured = ScreenCapture.CapturePixels(patch);
+                    return new ScreenCapture { Image = captured, DimmedImage = ScreenCapture.DimDesktop(captured) };
+                });
+                CollectionTests.Wait(prepared);
+                var image = prepared.Result.Image;
                 byte[] pixels = Pixels(image);
-                if (image.PixelWidth != 16 || image.PixelHeight != 16 || pixels[0] != 219 || pixels[1] != 128 || pixels[2] != 37 || pixels[3] != 255)
+                var dimmed = prepared.Result.DimmedImage;
+                byte[] dark = Pixels(dimmed);
+                if (!image.IsFrozen || !dimmed.IsFrozen || image.PixelWidth != 16 || image.PixelHeight != 16
+                    || pixels[0] != 219 || pixels[1] != 128 || pixels[2] != 37 || pixels[3] != 255
+                    || dark[0] != 107 || dark[1] != 63 || dark[2] != 18 || dark[3] != 255)
                     throw new InvalidOperationException("原生桌面截图的像素、透明度或物理尺寸不正确。");
             }
             finally { fixture.Close(); }

@@ -57,7 +57,7 @@ namespace Snapline
             Topmost = true; Background = Brushes.Black; FontFamily = Ui.Font; Ui.StyleToolTips(this, false);
             Left = screen.Bounds.Left; Top = screen.Bounds.Top; Width = screen.Bounds.Width; Height = screen.Bounds.Height;
             stage = new Canvas { Width = screen.Image.PixelWidth, Height = screen.Image.PixelHeight, ClipToBounds = true, Background = Brushes.Transparent };
-            var desktop = new Image { Source = DimDesktop(screen.Image), Width = stage.Width, Height = stage.Height, Stretch = Stretch.Fill, IsHitTestVisible = false };
+            var desktop = new Image { Source = screen.DimmedImage ?? ScreenCapture.DimDesktop(screen.Image), Width = stage.Width, Height = stage.Height, Stretch = Stretch.Fill, IsHitTestVisible = false };
             RenderOptions.SetBitmapScalingMode(desktop, BitmapScalingMode.NearestNeighbor);
             stage.Children.Add(desktop);
             selectionBrush = new ImageBrush(screen.Image) { Stretch = Stretch.Fill, ViewboxUnits = BrushMappingMode.RelativeToBoundingBox };
@@ -118,28 +118,6 @@ namespace Snapline
             hoverTimer.Tick += DetectHover;
             Closed += delegate { closed = true; hoverVersion++; hoverTimer.Stop(); SetColorPicking(false); };
             Redraw();
-        }
-        private static BitmapSource DimDesktop(BitmapSource image)
-        {
-            BitmapSource pixels = image.Format == PixelFormats.Bgra32 ? image : new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
-            int stride = image.PixelWidth * 4, rows = Math.Min(32, image.PixelHeight);
-            var buffer = new byte[stride * rows];
-            var result = new WriteableBitmap(image.PixelWidth, image.PixelHeight, 96, 96, PixelFormats.Bgra32, null);
-            for (int y = 0; y < image.PixelHeight; y += rows)
-            {
-                var rect = new Int32Rect(0, y, image.PixelWidth, Math.Min(rows, image.PixelHeight - y));
-                pixels.CopyPixels(rect, buffer, stride, 0);
-                for (int i = 0; i < rect.Height * stride; i += 4)
-                {
-                    int factor = buffer[i + 3] * 125;
-                    buffer[i] = (byte)((buffer[i] * factor + 32512) / 65025);
-                    buffer[i + 1] = (byte)((buffer[i + 1] * factor + 32512) / 65025);
-                    buffer[i + 2] = (byte)((buffer[i + 2] * factor + 32512) / 65025);
-                    buffer[i + 3] = 255;
-                }
-                result.WritePixels(rect, buffer, stride, 0);
-            }
-            result.Freeze(); return result;
         }
         private static Button AddAction(Panel panel, string icon, string tip, Action action, bool primary = false)
         {

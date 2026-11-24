@@ -32,6 +32,7 @@ namespace Snapline
     internal sealed class Store
     {
         internal const int Limit = 60;
+        private const int FirstThumbnailBatch = 12;
         internal readonly string Root;
         internal readonly string Inbox;
         internal readonly List<Shot> Items = new List<Shot>();
@@ -39,10 +40,11 @@ namespace Snapline
         private readonly Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
         private ImageWorker worker;
         private Task tail = Task.FromResult(true);
-        private bool stopping;
+        private bool stopping, historyPending;
         private sealed class Capture { internal byte[] Bytes; internal string Fingerprint; internal BitmapSource Thumbnail; }
         private Capture pendingClipboard;
         internal bool HasPendingClipboard { get { return pendingClipboard != null; } }
+        internal bool ThumbnailsPending { get; private set; }
         internal event Action Changed;
         internal event Action LayerChanged;
         internal void SetLayer(WindowLayer layer)
@@ -51,7 +53,7 @@ namespace Snapline
             if (LayerChanged != null) LayerChanged();
         }
         internal event Action<string> Error;
-        internal Store(string root, bool load = true)
+        internal Store(string root, bool load = true, bool deferHistory = false)
         {
             Root = System.IO.Path.GetFullPath(root);
             Inbox = System.IO.Path.Combine(Root, "inbox");
@@ -72,16 +74,17 @@ namespace Snapline
                 }
                 catch (Exception) { Settings = new Settings(); }
             }
-            if (load) Items.AddRange(LoadShots());
+            historyPending = ThumbnailsPending = deferHistory;
+            if (load && !deferHistory) Items.AddRange(LoadShots(true));
         }
-        private List<Shot> LoadShots()
+        private List<Shot> LoadShots(bool thumbnails)
         {
             var shots = new List<Shot>();
             foreach (string file in Directory.GetFiles(Inbox, "*.png").OrderByDescending(File.GetLastWriteTimeUtc).Take(Limit))
             {
                 try
                 {
-                    BitmapSource image = ReadImage(file, true);
+                    BitmapSource image = thumbnails ? ReadImage(file, true) : null;
                     string fingerprint;
                     using (var stream = File.OpenRead(file))
                     using (var hash = SHA256.Create()) fingerprint = BitConverter.ToString(hash.ComputeHash(stream)).Replace("-", "");
@@ -111,9 +114,47 @@ namespace Snapline
         {
             return Enqueue(async delegate
             {
-                var shots = await worker.Run(LoadShots);
-                Items.AddRange(shots); Notify(); return true;
+                await ReadHistoryAsync(true);
+                ThumbnailsPending = false; Notify(); return true;
             });
+        }
+        private async Task ReadHistoryAsync(bool thumbnails)
+        {
+            var shots = await worker.Run(delegate { return LoadShots(thumbnails); });
+            Items.AddRange(shots); historyPending = false;
+        }
+        internal Task<bool> LoadThumbnailsAsync()
+        {
+            return Enqueue(async delegate
+            {
+                if (!ThumbnailsPending) return true;
+                if (historyPending) await ReadHistoryAsync(false);
+                var missing = Items.Where(shot => shot.Image == null).ToArray();
+                if (missing.Length > FirstThumbnailBatch)
+                {
+                    await ReadThumbnailsAsync(missing.Take(FirstThumbnailBatch).ToArray());
+                    Notify();
+                    missing = missing.Skip(FirstThumbnailBatch).ToArray();
+                }
+                if (missing.Length > 0) await ReadThumbnailsAsync(missing);
+                ThumbnailsPending = false; Notify(); return true;
+            });
+        }
+        private async Task ReadThumbnailsAsync(Shot[] shots)
+        {
+            var images = await worker.Run(delegate
+            {
+                return shots.Select(shot =>
+                {
+                    try { return ReadImage(shot.Path, true); }
+                    catch (Exception) { return null; }
+                }).ToArray();
+            });
+            for (int i = 0; i < shots.Length; i++)
+            {
+                if (images[i] == null) Items.Remove(shots[i]);
+                else shots[i].Image = images[i];
+            }
         }
         internal Task<bool> ImportAsync(string path) { return AddAsync(delegate { return ReadImage(path); }); }
         internal Task<bool> AddAsync(Func<BitmapSource> read, bool snapshotImmediately = false)
@@ -134,9 +175,14 @@ namespace Snapline
             {
                 BitmapSource image = snapshot == null ? null : await snapshot;
                 Capture capture = await worker.Run(delegate { return Prepare(snapshot == null ? read() : image); });
-                if (capture == null || Items.Any(x => x.Fingerprint == capture.Fingerprint)) return false;
+                if (capture == null) return false;
                 Shot shot;
-                try { shot = await PersistAsync(capture); }
+                try
+                {
+                    if (historyPending) await ReadHistoryAsync(false);
+                    if (Items.Any(x => x.Fingerprint == capture.Fingerprint)) return false;
+                    shot = await PersistAsync(capture);
+                }
                 catch (IOException) { if (snapshotImmediately) pendingClipboard = capture; throw; }
                 catch (UnauthorizedAccessException) { if (snapshotImmediately) pendingClipboard = capture; throw; }
                 Publish(shot); return true;
@@ -147,6 +193,7 @@ namespace Snapline
             return Enqueue(async delegate
             {
                 Capture capture = pendingClipboard;
+                if (historyPending) await ReadHistoryAsync(false);
                 if (Items.Any(x => x.Fingerprint == capture.Fingerprint)) { pendingClipboard = null; return false; }
                 Shot shot = await PersistAsync(capture);
                 pendingClipboard = null;

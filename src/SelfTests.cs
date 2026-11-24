@@ -207,7 +207,7 @@ namespace Snapline
                 var edited = Preview.RenderAnnotation(ink);
                 Check(edited.PixelWidth == first.PixelWidth && edited.PixelHeight == first.PixelHeight && Store.Hash(Store.Encode(edited)) != Store.Hash(Store.Encode(first)), "annotation render preserves dimensions and adds ink");
                 store.Add(App.DemoImage(1)); store.Add(App.DemoImage(2));
-                shelf = new Shelf(store, true);
+                shelf = new Shelf(store);
                 Check(shelf.Icon != null && shelf.Icon.IsFrozen, "shelf window uses the embedded application icon");
                 DateTime opened = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc);
                 shelf.BeginReveal(true, opened);
@@ -300,7 +300,7 @@ namespace Snapline
                     SaveLayout(content, shelf.Width, shelf.Height, scale, Path.Combine(artifacts, "shelf-dpi-" + (int)(96 * scale) + ".png"));
                     Check(true, "shelf DPI " + (int)(96 * scale) + " render exports successfully");
                 }
-                var emptyShelf = new Shelf(new Store(Path.Combine(root, "empty")), true);
+                var emptyShelf = new Shelf(new Store(Path.Combine(root, "empty")));
                 try
                 {
                     emptyShelf.ApplyLayout(480); var emptyContent = (FrameworkElement)emptyShelf.Content;
@@ -314,7 +314,7 @@ namespace Snapline
                 shapeStore.Add(ShapeImage(1800, 120, "细长截图"));
                 shapeStore.Add(ShapeImage(360, 780, "竖屏截图"));
                 shapeStore.Add(ShapeImage(500, 500, "方形截图"));
-                var shapeShelf = new Shelf(shapeStore, true);
+                var shapeShelf = new Shelf(shapeStore);
                 try
                 {
                     shapeShelf.ApplyLayout(2560); var shapeContent = (FrameworkElement)shapeShelf.Content;

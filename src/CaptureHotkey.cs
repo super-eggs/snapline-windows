@@ -16,10 +16,17 @@ namespace Snapline
         private bool configuring;
         internal string Gesture { get; private set; }
         internal bool Registered { get { return registeredId != 0; } }
-        internal CaptureHotkey(Window owner, Action capture, int firstId = 2)
+        internal static HwndSource CreateMessageSource()
         {
-            this.capture = capture; this.firstId = firstId; handle = new WindowInteropHelper(owner).Handle;
-            source = HwndSource.FromHwnd(handle); source.AddHook(Hook);
+            return new HwndSource(new HwndSourceParameters("Snapline Hotkeys") { ParentWindow = new IntPtr(-3), WindowStyle = 0 });
+        }
+        internal CaptureHotkey(Window owner, Action capture, int firstId = 2)
+            : this(HwndSource.FromHwnd(new WindowInteropHelper(owner).Handle), capture, firstId) { }
+
+        internal CaptureHotkey(HwndSource source, Action capture, int firstId = 2)
+        {
+            this.capture = capture; this.firstId = firstId; this.source = source;
+            handle = source.Handle; source.AddHook(Hook);
         }
         internal bool Register(string value)
         {
