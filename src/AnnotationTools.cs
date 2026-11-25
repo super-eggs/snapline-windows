@@ -19,6 +19,7 @@ namespace Snapline
     {
         private readonly InkCanvas canvas;
         private readonly BitmapSource original;
+        private readonly Brush exportBackground;
         private readonly Dictionary<AnnotationTool, Button> buttons = new Dictionary<AnnotationTool, Button>();
         private readonly List<State> history = new List<State>();
         private int position;
@@ -39,9 +40,9 @@ namespace Snapline
         internal WrapPanel Toolbar { get; private set; }
         internal event Action Changed;
 
-        internal AnnotationTools(InkCanvas canvas, BitmapSource original)
+        internal AnnotationTools(InkCanvas canvas, BitmapSource original, Brush exportBackground = null)
         {
-            this.canvas = canvas; this.original = original;
+            this.canvas = canvas; this.original = original; this.exportBackground = exportBackground;
             canvas.ClipToBounds = true;
             canvas.DefaultDrawingAttributes = new DrawingAttributes { Color = color, Width = thickness, Height = thickness, FitToCurve = true };
             Toolbar = new WrapPanel();
@@ -229,7 +230,22 @@ namespace Snapline
         internal BitmapSource Render()
         {
             CancelDraft(); CommitText();
-            return Preview.RenderAnnotation(canvas);
+            if (exportBackground != null && !HasAnnotations)
+            {
+                // Copy just the selection into a fresh buffer so a pin cannot retain the desktop.
+                var copy = new WriteableBitmap(original.PixelWidth, original.PixelHeight, 96, 96, original.Format, original.Palette);
+                var area = new Int32Rect(0, 0, copy.PixelWidth, copy.PixelHeight);
+                copy.Lock();
+                try
+                {
+                    original.CopyPixels(area, copy.BackBuffer, checked(copy.BackBufferStride * copy.PixelHeight), copy.BackBufferStride);
+                    copy.AddDirtyRect(area);
+                }
+                finally { copy.Unlock(); }
+                copy.Freeze();
+                return copy;
+            }
+            return Preview.RenderAnnotation(canvas, background: exportBackground);
         }
         private UIElement CreateMark(AnnotationTool tool, Point from, Point to, bool constrain)
         {
@@ -239,7 +255,7 @@ namespace Snapline
             Int32Rect pixels = ScreenCapture.PixelRect(new Rect(from, to), original.PixelWidth, original.PixelHeight);
             if (pixels.Width == 0 || pixels.Height == 0) return null;
             // Render the patch at original resolution so mosaic also covers earlier text and strokes.
-            BitmapSource patch = Preview.RenderAnnotation(canvas, pixels);
+            BitmapSource patch = Preview.RenderAnnotation(canvas, pixels, exportBackground);
             var small = new TransformedBitmap(patch, new ScaleTransform(Math.Max(1, pixels.Width / 12) / (double)pixels.Width, Math.Max(1, pixels.Height / 12) / (double)pixels.Height));
             // Detach the small bitmap so undo history does not retain the rendered patch.
             var detached = new WriteableBitmap(small); detached.Freeze();

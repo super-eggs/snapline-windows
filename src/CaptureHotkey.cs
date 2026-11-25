@@ -3,30 +3,52 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using Forms = System.Windows.Forms;
 
 namespace Snapline
 {
+    internal sealed class HotkeyMessageWindow : Forms.NativeWindow, IDisposable
+    {
+        internal event Action<int> Hotkey;
+        internal HotkeyMessageWindow()
+        {
+            CreateHandle(new Forms.CreateParams { Caption = "Snapline Hotkeys", Parent = new IntPtr(-3) });
+        }
+        protected override void WndProc(ref Forms.Message message)
+        {
+            if (message.Msg == 0x0312 && Hotkey != null) Hotkey(message.WParam.ToInt32());
+            else base.WndProc(ref message);
+        }
+        public void Dispose() { DestroyHandle(); }
+    }
+
     internal sealed class CaptureHotkey : IDisposable
     {
         private readonly IntPtr handle;
         private readonly HwndSource source;
+        private readonly HotkeyMessageWindow messageWindow;
         private readonly Action capture;
         private readonly int firstId;
         private int registeredId;
         private bool configuring;
         internal string Gesture { get; private set; }
         internal bool Registered { get { return registeredId != 0; } }
-        internal static HwndSource CreateMessageSource()
+        internal static HotkeyMessageWindow CreateMessageSource()
         {
-            return new HwndSource(new HwndSourceParameters("Snapline Hotkeys") { ParentWindow = new IntPtr(-3), WindowStyle = 0 });
+            return new HotkeyMessageWindow();
         }
         internal CaptureHotkey(Window owner, Action capture, int firstId = 2)
             : this(HwndSource.FromHwnd(new WindowInteropHelper(owner).Handle), capture, firstId) { }
 
-        internal CaptureHotkey(HwndSource source, Action capture, int firstId = 2)
+        private CaptureHotkey(HwndSource source, Action capture, int firstId)
         {
             this.capture = capture; this.firstId = firstId; this.source = source;
             handle = source.Handle; source.AddHook(Hook);
+        }
+        internal CaptureHotkey(HotkeyMessageWindow source, Action capture, int firstId = 2)
+        {
+            this.capture = capture; this.firstId = firstId; messageWindow = source;
+            handle = source.Handle; source.Hotkey += OnHotkey;
         }
         internal bool Register(string value)
         {
@@ -44,8 +66,15 @@ namespace Snapline
         }
         private IntPtr Hook(IntPtr hwnd, int message, IntPtr wparam, IntPtr lparam, ref bool handled)
         {
-            if (message == 0x0312 && registeredId != 0 && wparam.ToInt32() == registeredId) { handled = true; if (!configuring) capture(); }
+            if (message == 0x0312 && registeredId != 0 && wparam.ToInt32() == registeredId)
+            {
+                handled = true; OnHotkey(registeredId);
+            }
             return IntPtr.Zero;
+        }
+        private void OnHotkey(int id)
+        {
+            if (registeredId != 0 && id == registeredId && !configuring) capture();
         }
         internal void Configure(Store store, bool paste = false, bool toggle = false)
         {
@@ -84,7 +113,9 @@ namespace Snapline
         public void Dispose()
         {
             if (registeredId != 0) Native.UnregisterHotKey(handle, registeredId);
-            registeredId = 0; source.RemoveHook(Hook);
+            registeredId = 0;
+            if (messageWindow != null) messageWindow.Hotkey -= OnHotkey;
+            else source.RemoveHook(Hook);
         }
     }
 }

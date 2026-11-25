@@ -252,10 +252,10 @@ namespace Snapline
             var button = Ui.IconButton(icon, tip, action); button.Margin = new Thickness(2, 0, 2, 0);
             toolbar.Children.Add(button); return button;
         }
-        internal static BitmapSource RenderAnnotation(InkCanvas canvas, Int32Rect? region = null)
+        internal static BitmapSource RenderAnnotation(InkCanvas canvas, Int32Rect? region = null, Brush background = null)
         {
             // Keep export independent of live WPF layout clips, DPI, transforms, opacity and focus.
-            var export = new InkCanvas { Width = canvas.Width, Height = canvas.Height, Background = canvas.Background,
+            var export = new InkCanvas { Width = canvas.Width, Height = canvas.Height, Background = background ?? canvas.Background,
                 Strokes = canvas.Strokes.Clone(), ClipToBounds = true, EditingMode = InkCanvasEditingMode.None };
             foreach (UIElement element in canvas.Children)
             {

@@ -22,7 +22,7 @@ namespace Snapline
         private bool clipboardBusy, copyingCapture, exiting;
         private Store store;
         private Shelf shelf;
-        private HwndSource hotkeySource;
+        private HotkeyMessageWindow hotkeySource;
         private CaptureHotkey shelfHotkey;
         private DispatcherTimer shelfHoverTimer;
         private DateTime shelfHoverSince;
@@ -43,6 +43,22 @@ namespace Snapline
         private Mutex mutex;
         private string demoRoot;
         private string smokeReport;
+        private sealed class TrayMenu : Forms.ContextMenuStrip
+        {
+            private Action<Forms.ContextMenuStrip> populate;
+            internal TrayMenu(Action<Forms.ContextMenuStrip> populate) { this.populate = populate; }
+            protected override void OnOpening(System.ComponentModel.CancelEventArgs e)
+            {
+                if (populate != null)
+                {
+                    populate(this);
+                    populate = null;
+                    // WinForms initially cancels opening if the menu is empty.
+                    e.Cancel = false;
+                }
+                base.OnOpening(e);
+            }
+        }
         [STAThread] public static int Main(string[] args)
         {
             // Static screenshot windows do not need the large D3D texture caches held in shared system memory.
@@ -154,6 +170,10 @@ namespace Snapline
                         string fileVersion = System.Diagnostics.FileVersionInfo.GetVersionInfo(Forms.Application.ExecutablePath).FileVersion;
                         string expectedVersionLabel = "当前运行版本 v" + new Version(fileVersion).ToString(3);
                         bool versionShown = false, startupSettingDisabled = false, updateDisabled = false;
+                        if (tray.ContextMenuStrip.Items.Count != 0) throw new InvalidOperationException("托盘菜单应在首次打开时加载");
+                        tray.ContextMenuStrip.Show(Forms.Screen.PrimaryScreen.WorkingArea.Location);
+                        if (!tray.ContextMenuStrip.Visible) throw new InvalidOperationException("首次打开托盘菜单失败");
+                        tray.ContextMenuStrip.Close();
                         foreach (Forms.ToolStripItem item in tray.ContextMenuStrip.Items)
                         {
                             if (item is Forms.ToolStripLabel && item.Text == expectedVersionLabel) versionShown = true;
@@ -498,7 +518,13 @@ namespace Snapline
             tray = new Forms.NotifyIcon();
             tray.Icon = AppIcon.TrayImage();
             tray.Text = demo ? "截图晾衣绳 · 演示模式" : "截图晾衣绳";
-            var menu = new Forms.ContextMenuStrip();
+            tray.ContextMenuStrip = new TrayMenu(PopulateTrayMenu);
+            tray.DoubleClick += delegate { ToggleShelf(); };
+            tray.Visible = true;
+            if (!demo && !startup) { tray.BalloonTipTitle = "截图晾衣绳已就绪"; tray.BalloonTipText = store.Settings.CaptureHotkey + " 截图取色；" + store.Settings.PinHotkey + " 贴图；Ctrl+Alt+T 展开晾衣绳。"; tray.ShowBalloonTip(4000); }
+        }
+        private void PopulateTrayMenu(Forms.ContextMenuStrip menu)
+        {
             menu.Items.Add(new Forms.ToolStripLabel("当前运行版本 v" + typeof(App).Assembly.GetName().Version.ToString(3)));
             var checkUpdates = menu.Items.Add("检查更新…");
             checkUpdates.Enabled = !demo;
@@ -632,10 +658,6 @@ namespace Snapline
             menu.Items.Add("退出", null, async delegate { await ExitAsync(); });
             menu.Opening += delegate { if (shelf != null) shelf.Busy = true; };
             menu.Closed += delegate { if (shelf != null) shelf.Busy = false; };
-            tray.ContextMenuStrip = menu;
-            tray.DoubleClick += delegate { ToggleShelf(); };
-            tray.Visible = true;
-            if (!demo && !startup) { tray.BalloonTipTitle = "截图晾衣绳已就绪"; tray.BalloonTipText = store.Settings.CaptureHotkey + " 截图取色；" + store.Settings.PinHotkey + " 贴图；Ctrl+Alt+T 展开晾衣绳。"; tray.ShowBalloonTip(4000); }
         }
 
         private async Task CheckForUpdatesAsync(Forms.ToolStripItem item)
@@ -783,7 +805,7 @@ namespace Snapline
             if (pins != null) pins.Dispose();
             if (pinWorker != null) pinWorker.Dispose();
             if (shelf != null) shelf.Dispose();
-            if (tray != null) { tray.Visible = false; var icon = tray.Icon; tray.Dispose(); if (icon != null) icon.Dispose(); }
+            if (tray != null) { tray.Visible = false; var icon = tray.Icon; tray.ContextMenuStrip.Dispose(); tray.Dispose(); if (icon != null) icon.Dispose(); }
             if (demoRoot != null && Path.GetDirectoryName(Path.GetFullPath(demoRoot)).TrimEnd(Path.DirectorySeparatorChar) == Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar) && Path.GetFileName(demoRoot).StartsWith("Snapline-demo-", StringComparison.Ordinal))
             {
                 try { Directory.Delete(demoRoot, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }

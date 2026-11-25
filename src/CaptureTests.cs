@@ -105,12 +105,12 @@ namespace Snapline
                 check(shownPixels[inside] == 120 && shownPixels[inside + 1] == 110 && shownPixels[inside + 2] == 160,
                     "revealed capture preview preserves exact source pixels with non-square bitmap DPI");
                 check(shownPixels[outside] == 20 && shownPixels[outside + 1] == 83 && shownPixels[outside + 2] == 78 && shownPixels[outside + 3] == 255,
-                    "cached capture backdrop stays opaque and preserves original dimming strength");
+                    "capture mask stays opaque over the desktop and preserves the dimming strength");
                 File.WriteAllBytes(Path.Combine(artifacts, "capture-preview-mask.png"), Store.Encode(previewRender));
                 previewScreen.Windows.Clear(); previewScreen.Windows.Add(new CaptureTarget(IntPtr.Zero, new Rect(160, 100, 100, 100)));
                 previewCapture.UpdateHover(new Point(180, 120)); shownPixels = Pixels(renderPreview());
                 check(shownPixels[inside] == 59 && shownPixels[inside + 1] == 54 && shownPixels[inside + 2] == 78,
-                    "moving the revealed capture region restores the old area to its cached dimmed pixels");
+                    "moving the revealed capture region restores the mask over the old area");
             }
             finally { previewCapture.Close(); }
             var clipped = ScreenCapture.PixelRect(new Rect(-8.5, 20.2, 100, 1000), 640, 400);
@@ -276,28 +276,28 @@ namespace Snapline
         internal static void VerifyDesktopPixels()
         {
             var fixture = new Window { Title = "Snapline 截图像素验证", Width = 160, Height = 160, Left = 200, Top = 200,
-                Background = new SolidColorBrush(Color.FromRgb(37, 128, 219)), WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize,
+                WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize,
                 Topmost = true, ShowInTaskbar = false, ShowActivated = false };
+            var bands = new Grid();
+            bands.RowDefinitions.Add(new RowDefinition()); bands.RowDefinitions.Add(new RowDefinition());
+            var upper = new Border { Background = new SolidColorBrush(Color.FromRgb(37, 128, 219)) };
+            var lower = new Border { Background = new SolidColorBrush(Color.FromRgb(210, 64, 20)) };
+            Grid.SetRow(lower, 1); bands.Children.Add(upper); bands.Children.Add(lower); fixture.Content = bands;
             try
             {
                 fixture.Show(); fixture.UpdateLayout();
                 CollectionTests.Wait(Task.Delay(250));
                 Native.Rect bounds; Native.GetWindowRect(new WindowInteropHelper(fixture).Handle, out bounds);
                 // Read only a small patch of this opaque synthetic test window.
-                var patch = new System.Drawing.Rectangle(bounds.Left + 30, bounds.Top + 30, 16, 16);
-                var prepared = Task.Run(delegate
-                {
-                    var captured = ScreenCapture.CapturePixels(patch);
-                    return new ScreenCapture { Image = captured, DimmedImage = ScreenCapture.DimDesktop(captured) };
-                });
+                var patch = new System.Drawing.Rectangle(bounds.Left + 30, (bounds.Top + bounds.Bottom) / 2 - 8, 16, 16);
+                var prepared = Task.Run(delegate { return ScreenCapture.CapturePixels(patch); });
                 CollectionTests.Wait(prepared);
-                var image = prepared.Result.Image;
+                var image = prepared.Result;
                 byte[] pixels = Pixels(image);
-                var dimmed = prepared.Result.DimmedImage;
-                byte[] dark = Pixels(dimmed);
-                if (!image.IsFrozen || !dimmed.IsFrozen || image.PixelWidth != 16 || image.PixelHeight != 16
+                int lastRow = 15 * 16 * 4;
+                if (!image.IsFrozen || image.PixelWidth != 16 || image.PixelHeight != 16
                     || pixels[0] != 219 || pixels[1] != 128 || pixels[2] != 37 || pixels[3] != 255
-                    || dark[0] != 107 || dark[1] != 63 || dark[2] != 18 || dark[3] != 255)
+                    || pixels[lastRow] != 20 || pixels[lastRow + 1] != 64 || pixels[lastRow + 2] != 210 || pixels[lastRow + 3] != 255)
                     throw new InvalidOperationException("原生桌面截图的像素、透明度或物理尺寸不正确。");
             }
             finally { fixture.Close(); }

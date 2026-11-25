@@ -14,11 +14,10 @@ namespace Snapline
 {
     internal sealed class CaptureWindow : Window
     {
-        private readonly ScreenCapture screen;
+        private ScreenCapture screen;
         private readonly Canvas stage;
         private readonly Canvas selectionLayer = new Canvas();
-        private readonly Border selectionPreview;
-        private readonly ImageBrush selectionBrush;
+        private readonly RectangleGeometry maskOpening = new RectangleGeometry();
         private readonly System.Windows.Shapes.Rectangle outline = new System.Windows.Shapes.Rectangle { Stroke = Ui.Accent, StrokeThickness = 1, IsHitTestVisible = false };
         private readonly Border toolbar;
         private readonly Button colorPickerButton;
@@ -56,14 +55,14 @@ namespace Snapline
             WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
             Topmost = true; Background = Brushes.Black; FontFamily = Ui.Font; Ui.StyleToolTips(this, false);
             Left = screen.Bounds.Left; Top = screen.Bounds.Top; Width = screen.Bounds.Width; Height = screen.Bounds.Height;
-            stage = new Canvas { Width = screen.Image.PixelWidth, Height = screen.Image.PixelHeight, ClipToBounds = true, Background = Brushes.Transparent };
-            var desktop = new Image { Source = screen.DimmedImage ?? ScreenCapture.DimDesktop(screen.Image), Width = stage.Width, Height = stage.Height, Stretch = Stretch.Fill, IsHitTestVisible = false };
+            stage = new Canvas { Width = screen.Image.PixelWidth, Height = screen.Image.PixelHeight, ClipToBounds = true, Background = Brushes.Black };
+            var desktop = new Image { Source = screen.Image, Width = stage.Width, Height = stage.Height, Stretch = Stretch.Fill, IsHitTestVisible = false };
             RenderOptions.SetBitmapScalingMode(desktop, BitmapScalingMode.NearestNeighbor);
             stage.Children.Add(desktop);
-            selectionBrush = new ImageBrush(screen.Image) { Stretch = Stretch.Fill, ViewboxUnits = BrushMappingMode.RelativeToBoundingBox };
-            selectionPreview = new Border { Background = selectionBrush, IsHitTestVisible = false };
-            RenderOptions.SetBitmapScalingMode(selectionPreview, BitmapScalingMode.NearestNeighbor);
-            stage.Children.Add(selectionPreview);
+            var mask = new GeometryGroup { FillRule = FillRule.EvenOdd };
+            mask.Children.Add(new RectangleGeometry(new Rect(0, 0, stage.Width, stage.Height)));
+            mask.Children.Add(maskOpening);
+            stage.Children.Add(new System.Windows.Shapes.Path { Data = mask, Fill = new SolidColorBrush(Color.FromArgb(130, 0, 0, 0)), IsHitTestVisible = false });
             stage.Children.Add(selectionLayer); stage.Children.Add(outline);
             for (int i = 0; i < handles.Length; i++)
             {
@@ -116,7 +115,21 @@ namespace Snapline
             PreviewKeyDown += KeyDownCapture;
             Deactivated += delegate { SetColorPicking(false); };
             hoverTimer.Tick += DetectHover;
-            Closed += delegate { closed = true; hoverVersion++; hoverTimer.Stop(); SetColorPicking(false); };
+            Closed += delegate
+            {
+                closed = true; hoverVersion++; hoverTimer.Stop(); SetColorPicking(false);
+                bool largeCapture = (long)this.screen.Image.PixelWidth * this.screen.Image.PixelHeight >= 1280 * 720;
+                desktop.Source = null;
+                selectionLayer.Children.Clear(); annotationHost.Children.Clear();
+                ink = null; annotations = null; this.screen = null;
+                // The released WPF bitmaps mostly hold native memory, so the managed heap can stay small
+                // even after several large captures. Reclaim them off the interaction path.
+                if (largeCapture && !Dispatcher.HasShutdownStarted)
+                    Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(delegate
+                    {
+                        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: false);
+                    }));
+            };
             Redraw();
         }
         private static Button AddAction(Panel panel, string icon, string tip, Action action, bool primary = false)
@@ -156,6 +169,7 @@ namespace Snapline
         }
         private void Position()
         {
+            if (closed) return;
             var source = PresentationSource.FromVisual(this);
             if (source == null) return;
             Matrix dpi = source.CompositionTarget.TransformToDevice;
@@ -197,10 +211,11 @@ namespace Snapline
             if (selected || dragging || closed || hoverTarget == null) return;
             int version = hoverVersion;
             CaptureTarget target = hoverTarget; Point point = hoverPoint;
+            var bounds = screen.Bounds;
             detecting = true;
             try
             {
-                List<Rect> candidates = await Task.Run(delegate { return ControlDetector.Find(target, point, screen.Bounds); });
+                List<Rect> candidates = await Task.Run(delegate { return ControlDetector.Find(target, point, bounds); });
                 if (closed || selected || dragging || version != hoverVersion) return;
                 // Keep an explicit parent choice if the user scrolled before the lookup completed.
                 hoverLevel = hoverLevel > 0 ? candidates.Count - 1 : 0;
@@ -303,9 +318,9 @@ namespace Snapline
             if (rebuild)
             {
                 var crop = new CroppedBitmap(screen.Image, rect); crop.Freeze();
-                ink = new InkCanvas { Width = rect.Width, Height = rect.Height, Background = new ImageBrush(crop) { Stretch = Stretch.Fill } };
+                ink = new InkCanvas { Width = rect.Width, Height = rect.Height, Background = Brushes.Transparent };
                 RenderOptions.SetBitmapScalingMode(ink, BitmapScalingMode.NearestNeighbor);
-                annotations = new AnnotationTools(ink, crop);
+                annotations = new AnnotationTools(ink, crop, new ImageBrush(crop) { Stretch = Stretch.Fill });
                 annotations.Changed += Redraw;
                 selectionLayer.Children.Clear(); selectionLayer.Children.Add(ink);
                 annotationHost.Children.Clear(); annotationHost.Children.Add(annotations.Toolbar);
@@ -320,15 +335,10 @@ namespace Snapline
         }
         private void Redraw()
         {
+            if (closed) return;
             Rect shown = selected || dragging ? selection : hover;
-            // Keep the dimmed desktop static. Only the small revealed region changes while dragging.
-            selectionPreview.Visibility = shown.IsEmpty || selected && !dragging ? Visibility.Collapsed : Visibility.Visible;
-            if (!shown.IsEmpty)
-            {
-                Canvas.SetLeft(selectionPreview, shown.Left); Canvas.SetTop(selectionPreview, shown.Top);
-                selectionPreview.Width = shown.Width; selectionPreview.Height = shown.Height;
-                selectionBrush.Viewbox = new Rect(shown.X / stage.Width, shown.Y / stage.Height, shown.Width / stage.Width, shown.Height / stage.Height);
-            }
+            // Reveal the selection by cutting a hole in the mask over the single desktop image.
+            maskOpening.Rect = shown.IsEmpty ? new Rect() : shown;
             outline.Visibility = shown.IsEmpty ? Visibility.Collapsed : Visibility.Visible;
             if (!shown.IsEmpty)
             {
