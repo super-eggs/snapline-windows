@@ -21,6 +21,13 @@ namespace Snapline
         [DataMember] public string CaptureHotkey = "F1";
         [DataMember] public string PinHotkey = "F3";
         [DataMember] public string TogglePinsHotkey = "Shift+F3";
+        [DataMember] public bool ShelfHoverEnabled = true;
+
+        [OnDeserializing]
+        private void SetDeserializationDefaults(StreamingContext context)
+        {
+            ShelfHoverEnabled = true;
+        }
     }
     internal sealed class Shot
     {

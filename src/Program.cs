@@ -136,6 +136,7 @@ namespace Snapline
             }
             if (smokeReport != null)
             {
+                UpdateShelfHoverTimer();
                 // Reproduce a tray/hotkey reveal: pointer outside the shelf.
                 // Move only this isolated demo window; never move the user's pointer.
                 Native.Point cursor; Native.Rect bounds;
@@ -162,6 +163,7 @@ namespace Snapline
                 {
                     smokeTimer.Stop();
                     int result = 0;
+                    string hoverReport = null;
                     string report;
                     try
                     {
@@ -170,6 +172,7 @@ namespace Snapline
                         string fileVersion = System.Diagnostics.FileVersionInfo.GetVersionInfo(Forms.Application.ExecutablePath).FileVersion;
                         string expectedVersionLabel = "当前运行版本 v" + new Version(fileVersion).ToString(3);
                         bool versionShown = false, startupSettingDisabled = false, updateDisabled = false;
+                        Forms.ToolStripMenuItem shelfHoverSetting = null;
                         if (tray.ContextMenuStrip.Items.Count != 0) throw new InvalidOperationException("托盘菜单应在首次打开时加载");
                         tray.ContextMenuStrip.Show(Forms.Screen.PrimaryScreen.WorkingArea.Location);
                         if (!tray.ContextMenuStrip.Visible) throw new InvalidOperationException("首次打开托盘菜单失败");
@@ -181,14 +184,26 @@ namespace Snapline
                             if (setting != null && setting.Text == "开机自启（登录后）")
                                 startupSettingDisabled = !setting.Enabled && !setting.Checked;
                             if (setting != null && setting.Text == "检查更新…") updateDisabled = !setting.Enabled;
+                            if (setting != null && setting.Text == "顶部悬停展开晾衣绳") shelfHoverSetting = setting;
                         }
                         if (!versionShown) throw new InvalidOperationException("托盘菜单显示的版本与程序文件版本不一致");
                         if (!startupSettingDisabled) throw new InvalidOperationException("演示模式必须显示并禁用开机自启设置");
                         if (!updateDisabled) throw new InvalidOperationException("演示模式必须显示并禁用检查更新");
+                        if (shelfHoverSetting == null || !shelfHoverSetting.Checked || !shelfHoverTimer.IsEnabled)
+                            throw new InvalidOperationException("顶部悬停开关应默认开启");
+                        shelfHoverSince = DateTime.UtcNow;
+                        shelfHoverSetting.PerformClick();
+                        if (shelfHoverSetting.Checked || shelfHoverTimer.IsEnabled || shelfHoverSince != DateTime.MinValue
+                            || new Store(store.Root, load: false).Settings.ShelfHoverEnabled)
+                            throw new InvalidOperationException("关闭顶部悬停后应立即停止检测并保存设置");
                         if (!smoothStart || shelf.ScrollOffset <= 0 || Math.Abs(shelf.ScrollOffset - shelf.ScrollTarget) > .3)
                             throw new InvalidOperationException("原生横向滚轮消息或实际滚动动画未完成");
-                        shelf.Toggle(); if (shelf.IsVisible) throw new InvalidOperationException("窗口无法收起");
-                        shelf.Toggle(); if (!shelf.IsVisible) throw new InvalidOperationException("窗口无法重新展开");
+                        ToggleShelf(); if (shelf.IsVisible) throw new InvalidOperationException("窗口无法收起");
+                        ToggleShelf(); if (!shelf.IsVisible) throw new InvalidOperationException("关闭顶部悬停后窗口无法手动展开");
+                        shelfHoverSetting.PerformClick();
+                        if (!shelfHoverSetting.Checked || !shelfHoverTimer.IsEnabled || !new Store(store.Root, load: false).Settings.ShelfHoverEnabled)
+                            throw new InvalidOperationException("重新开启顶部悬停后应恢复检测并保存设置");
+                        hoverReport = "PASS tray hover setting stops and resumes polling, persists both states, and allows manual reveal while disabled\n";
                         Native.Rect screenWindow; Native.GetWindowRect(smokeHandle, out screenWindow);
                         var display = Forms.Screen.FromHandle(smokeHandle).Bounds;
                         if (screenWindow.Left != display.Left || Math.Abs((screenWindow.Right - screenWindow.Left) - display.Width) > 1)
@@ -242,7 +257,7 @@ namespace Snapline
                             + "PASS startup setting is visible, disabled and unchecked in demo mode\nPASS native desktop capture reads the exact opaque RGB pixels and physical size of an isolated synthetic window patch\nPASS persisted top/normal/bottom layers update native topmost style and bottom remains below an independent normal window after reveal; preview follows live changes\nPASS real preview window opens, fits, zooms and renders a quarter-turn image at original resolution\nPASS native horizontal-wheel message starts smooth movement and real DispatcherTimer animation settles on target\nPASS manual reveal remains visible after 3.2 seconds with real auto-hide timer enabled and initial pointer outside\nPASS native window matches current monitor left edge and complete physical width\nPASS application startup, tray initialization, demo captures, window hide/reveal, annotation window startup, independent WPF layout export\nPASS real clipboard and screenshot directory monitoring disabled in smoke test\n";
                     }
                     catch (Exception ex) { result = 1; report = "FAIL " + ex; }
-                    Directory.CreateDirectory(Path.GetDirectoryName(smokeReport)); File.WriteAllText(smokeReport, report);
+                    Directory.CreateDirectory(Path.GetDirectoryName(smokeReport)); File.WriteAllText(smokeReport, hoverReport + report);
                     Shutdown(result);
                 };
                 smokeTimer.Start();
@@ -256,7 +271,7 @@ namespace Snapline
             if (!shelfHotkey.Register("Ctrl+Alt+T"))
             {
                 tray.BalloonTipTitle = "晾衣绳快捷键未启用";
-                tray.BalloonTipText = "Ctrl+Alt+T 已被占用，可从托盘或屏幕顶部唤出。";
+                tray.BalloonTipText = "Ctrl+Alt+T 已被占用，可通过托盘菜单展开晾衣绳。";
                 tray.ShowBalloonTip(5000);
             }
             captureHotkey = new CaptureHotkey(hotkeySource, delegate { StartCapture(false); });
@@ -275,8 +290,22 @@ namespace Snapline
                 tray.BalloonTipText = "贴图或隐藏贴图快捷键已被占用，可从托盘使用，或修改相应快捷键。";
                 tray.ShowBalloonTip(5000);
             }
-            shelfHoverTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
-            shelfHoverTimer.Tick += CheckShelfHover;
+            UpdateShelfHoverTimer();
+        }
+
+        private void UpdateShelfHoverTimer()
+        {
+            shelfHoverSince = DateTime.MinValue;
+            if (!store.Settings.ShelfHoverEnabled)
+            {
+                if (shelfHoverTimer != null) shelfHoverTimer.Stop();
+                return;
+            }
+            if (shelfHoverTimer == null)
+            {
+                shelfHoverTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
+                shelfHoverTimer.Tick += CheckShelfHover;
+            }
             shelfHoverTimer.Start();
         }
 
@@ -553,6 +582,27 @@ namespace Snapline
                 togglePins.Text = "隐藏 / 显示全部贴图    " + store.Settings.TogglePinsHotkey + (togglePinsHotkey != null && !togglePinsHotkey.Registered ? "（快捷键未启用）" : "");
             };
             menu.Items.Add("显示 / 隐藏    Ctrl+Alt+T", null, delegate { ToggleShelf(); });
+            var shelfHover = new Forms.ToolStripMenuItem("顶部悬停展开晾衣绳")
+            {
+                Checked = store.Settings.ShelfHoverEnabled,
+                Enabled = !demo || smokeReport != null
+            };
+            shelfHover.Click += delegate
+            {
+                bool wasEnabled = store.Settings.ShelfHoverEnabled;
+                store.Settings.ShelfHoverEnabled = !wasEnabled;
+                try { store.SaveSettings(); }
+                catch (Exception ex)
+                {
+                    store.Settings.ShelfHoverEnabled = wasEnabled;
+                    if (!(ex is IOException) && !(ex is UnauthorizedAccessException)) throw;
+                    MessageBox.Show("无法保存顶部悬停设置：" + ex.Message, "Snapline", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                UpdateShelfHoverTimer();
+                shelfHover.Checked = store.Settings.ShelfHoverEnabled;
+            };
+            menu.Items.Add(shelfHover);
             menu.Items.Add("导入图片…", null, delegate { EnsureShelf().ImportDialog(); });
             var layers = new Forms.ToolStripMenuItem("窗口层级");
             foreach (WindowLayer layer in Enum.GetValues(typeof(WindowLayer)))
@@ -643,6 +693,7 @@ namespace Snapline
                     "空格展开标注；Esc 先收起工具，再关闭贴图；Shift+Esc 彻底关闭。\n" +
                     "托盘可恢复上一张关闭的贴图；彻底关闭或退出软件后无法恢复。\n\n" +
                     "【晾衣绳与保存】\n" +
+                    "在托盘菜单勾选或取消“顶部悬停展开晾衣绳”，可随时切换自动展开。\n" +
                     "单击图片复制，双击预览，右键标注或贴图；滚轮浏览，顶部 ＋ 导入。\n" +
                     "托盘可开关剪贴板 / 文件夹收集；开启剪贴板收集后也可接收 Win+Shift+S 截图。\n" +
                     "图片副本与设置保存在 %LOCALAPPDATA%\\Snapline，可从托盘打开收集文件夹。\n" +

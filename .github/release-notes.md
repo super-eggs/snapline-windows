@@ -1,17 +1,15 @@
 ## 中文更新
 
-- 降低截图和框选时的内存峰值，保留原始分辨率。大尺寸截图关闭后，在后台回收图像缓冲。
-- 托盘菜单首次打开时加载，后台快捷键使用轻量消息窗口。
+- 托盘菜单新增「顶部悬停展开晾衣绳」开关，切换立即生效并在重启后保留。关闭后仍可用 Ctrl+Alt+T 或双击托盘图标手动展开。
 
 ## English updates
 
-- Reduced memory peaks during capture and selection while preserving full-resolution output. Large capture buffers are reclaimed after the capture closes.
-- The tray menu loads on first open, and global shortcuts run on a lightweight message window.
+- Added a tray toggle for opening the shelf by hovering at the top of the screen. Changes apply immediately and persist after restart. Ctrl+Alt+T and double-clicking the tray icon still open the shelf while hover is disabled.
 
 ## 下载与安装
 
-- **Snapline-Setup-1.0.10-x64.exe** 为 Windows 10/11 x64 安装包。双击安装，从开始菜单启动。
-- **Snapline-Portable-1.0.10-x64.zip** 为免安装版。解压后运行 Snapline.exe。
+- **Snapline-Setup-1.0.11-x64.exe** 为 Windows 10/11 x64 安装包。双击安装，从开始菜单启动。
+- **Snapline-Portable-1.0.11-x64.zip** 为免安装版。解压后运行 Snapline.exe。
 - **SHA256SUMS.txt**：上述文件的 SHA-256 校验值。
 
 安装到当前用户目录，无需管理员权限；可选桌面快捷方式，可从 Windows 设置卸载。卸载保留 `%LOCALAPPDATA%\Snapline` 中的截图和配置。

@@ -179,6 +179,7 @@ namespace Snapline
                 File.WriteAllText(Path.Combine(legacyRoot, "settings.json"), "{\"ClipboardEnabled\":false,\"WatchEnabled\":false,\"WatchFolder\":\"\"}");
                 var legacySettings = new Store(legacyRoot).Settings;
                 Check(legacySettings.Layer == WindowLayer.Top && !legacySettings.ClipboardEnabled, "legacy settings preserve collection preferences and default layer to top");
+                Check(legacySettings.ShelfHoverEnabled, "legacy settings preserve enabled shelf hover");
                 string folder = Path.Combine(root, "watch"); Directory.CreateDirectory(folder);
                 File.Copy(original, Path.Combine(folder, "existing.png"));
                 int collected = 0, errors = 0;
