@@ -96,7 +96,7 @@ Windows PowerShell 中运行：
 
 推送与程序版本匹配的 `release-check/v主.次.补丁` 标签，可演练同一套构建、安装检查和上传流程。演练使用临时 GitHub Release 草稿，核对三个文件后删除草稿。演练完成后可删除演练标签。
 
-网站从 GitHub Release 同步正式版本和已上传的下载文件。发布说明中的 `## 中文更新` 和 `## English updates` 分别用于中英文页面，在每个标题下用列表填写更新要点。自动发布和手动发布都使用同一格式。正常情况下，新 Release 会在几分钟内显示。
+正式发布完成后，GitHub Actions 从 GitHub Release 读取版本说明和已上传的下载文件，生成中英文官网的静态更新日志，由 Cloudflare Pages 发布。发布说明中的 `## 中文更新` 和 `## English updates` 分别用于中英文页面，在每个标题下用列表填写更新要点。需要重新同步已发布的版本时，可手动运行 GitHub Actions 的 `Sync website release notes`。
 
 ## 验收边界
 
