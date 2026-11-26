@@ -1,0 +1,49 @@
+name: Sync website release notes
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sync-website-releases.yml
+      - scripts/sync-website-releases.mjs
+
+permissions:
+  contents: write
+
+concurrency:
+  group: snapline-website-release-notes
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Generate bilingual website release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh api --paginate --slurp -H 'Accept: application/vnd.github+json' \
+            "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+          node scripts/sync-website-releases.mjs "$RUNNER_TEMP/releases.json" "$RELEASE_TAG"
+          git diff --check
+      - name: Update the Cloudflare Pages source
+        run: |
+          git add -- docs/index.html docs/en/index.html docs/releases.json
+          if git diff --cached --quiet; then
+            echo "Website release notes are already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs: 同步官网更新日志"
+          git push origin HEAD:refs/heads/main
