@@ -18,7 +18,7 @@ namespace Snapline
     internal sealed class AnnotationTools
     {
         private readonly InkCanvas canvas;
-        private readonly BitmapSource original;
+        private BitmapSource original;
         private readonly Brush exportBackground;
         private readonly Dictionary<AnnotationTool, Button> buttons = new Dictionary<AnnotationTool, Button>();
         private readonly List<State> history = new List<State>();
@@ -121,6 +121,14 @@ namespace Snapline
             canvas.StrokeCollected += delegate { Record(); };
             canvas.StrokeErased += delegate { Record(); };
             history.Add(Snapshot()); Select(AnnotationTool.Hand);
+        }
+        internal void ResetImage(BitmapSource image)
+        {
+            DiscardText(); CancelDraft();
+            original = image;
+            canvas.Strokes.Clear(); canvas.Children.Clear();
+            history.Clear(); history.Add(Snapshot()); position = 0;
+            RefreshHistory();
         }
         internal void Select(AnnotationTool tool)
         {

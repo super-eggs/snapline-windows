@@ -12,10 +12,12 @@ namespace Snapline
 {
     internal sealed class Preview : Window
     {
+        private readonly Store store;
+        private Shot currentShot;
         private readonly InkCanvas canvas;
         private readonly ScrollViewer viewer;
-        private readonly TextBlock info;
-        private readonly BitmapSource original;
+        private readonly TextBlock filename, info;
+        private BitmapSource original;
         private readonly AnnotationTools annotations;
         private readonly Button zoomLabel;
         private readonly Slider zoomSlider;
@@ -31,6 +33,7 @@ namespace Snapline
         internal int Rotation { get { return rotation; } }
         internal Preview(Store store, Shot shot, bool editing, Action<BitmapSource> pinImage = null)
         {
+            this.store = store; currentShot = shot;
             Title = "截图预览";
             Icon = AppIcon.WindowImage();
             Width = Math.Min(1100, SystemParameters.WorkArea.Width - 80);
@@ -55,7 +58,7 @@ namespace Snapline
             AddIcon(toolbar, "rotateLeft", "向左旋转 90°", delegate { Rotate(-90); });
             AddIcon(toolbar, "rotateRight", "向右旋转 90°", delegate { Rotate(90); });
             command.Children.Add(toolbar);
-            var filename = new TextBlock { Text = System.IO.Path.GetFileName(shot.Path), FontSize = 12, Foreground = Ui.Muted,
+            filename = new TextBlock { Text = Path.GetFileName(shot.Path), FontSize = 12, Foreground = Ui.Muted,
                 TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(20, 0, 20, 0) };
             Grid.SetColumn(filename, 1); command.Children.Add(filename);
             var actions = new StackPanel { Orientation = Orientation.Horizontal }; Grid.SetColumn(actions, 2); command.Children.Add(actions);
@@ -66,7 +69,7 @@ namespace Snapline
                 saving = true; IsEnabled = false;
                 string previousInfo = info.Text;
                 info.Text = "正在保存…";
-                try { await store.ReplaceAsync(shot, RenderEdited()); }
+                try { await store.ReplaceAsync(currentShot, RenderEdited()); }
                 catch (Exception ex)
                 {
                     if (!(ex is IOException || ex is UnauthorizedAccessException)) throw;
@@ -77,13 +80,7 @@ namespace Snapline
                 Close();
             });
             Ui.Select(save, true);
-            AddIcon(actions, "delete", "删除此图片（仅删除应用副本）", delegate
-            {
-                try { store.Remove(shot); }
-                catch (System.IO.IOException) { MessageBox.Show(this, "删除失败，请检查文件是否被占用或磁盘是否可用。", "截图晾衣绳"); return; }
-                catch (UnauthorizedAccessException) { MessageBox.Show(this, "删除失败，请检查文件权限。", "截图晾衣绳"); return; }
-                Close();
-            });
+            AddIcon(actions, "delete", "删除此图片的应用副本（Delete）", DeleteCurrent);
             var layerButton = AddIcon(actions, "layers", "窗口层级", null);
             var layerMenu = Ui.Menu();
             foreach (WindowLayer layer in Enum.GetValues(typeof(WindowLayer)))
@@ -183,7 +180,20 @@ namespace Snapline
                 if (annotations.IsTextEditing) return;
                 if (e.Key == Key.Escape) Close();
                 if (annotations.HandleKey(e)) { e.Handled = true; return; }
-                if ((Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
+                ModifierKeys modifiers = Keyboard.Modifiers;
+                if (modifiers == ModifierKeys.None && e.Key == Key.Delete)
+                {
+                    e.Handled = true;
+                    if (!e.IsRepeat) DeleteCurrent();
+                    return;
+                }
+                if (modifiers == ModifierKeys.None && (e.Key == Key.Left || e.Key == Key.Right) && !zoomSlider.IsKeyboardFocusWithin)
+                {
+                    e.Handled = true;
+                    Navigate(e.Key == Key.Left ? -1 : 1, e.IsRepeat);
+                    return;
+                }
+                if ((modifiers & ModifierKeys.Control) == 0) return;
                 if (e.Key == Key.D0 || e.Key == Key.NumPad0) FitImage();
                 else if (e.Key == Key.D1 || e.Key == Key.NumPad1) ChangeZoom(1);
                 else if (e.Key == Key.Add || e.Key == Key.OemPlus) ChangeZoom(zoom * 1.25);
@@ -192,6 +202,77 @@ namespace Snapline
                 e.Handled = true;
             };
             annotations.Select(editing ? AnnotationTool.Pen : AnnotationTool.Hand); refresh(); UpdateTransform();
+        }
+        private void DeleteCurrent()
+        {
+            if (saving || canvas.IsMouseCaptureWithin || canvas.IsStylusCaptureWithin) return;
+            int index = store.Items.IndexOf(currentShot);
+            try
+            {
+                if (!store.Remove(currentShot))
+                {
+                    info.Text = "无法从晾衣绳删除这张图片。";
+                    return;
+                }
+            }
+            catch (IOException)
+            {
+                MessageBox.Show(this, "删除失败，请检查文件是否被占用或磁盘是否可用。", "截图晾衣绳");
+                return;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                MessageBox.Show(this, "删除失败，请检查文件权限。", "截图晾衣绳");
+                return;
+            }
+
+            // The next image now occupies the deleted image's index.
+            if (!TryShowNeighbor(index, 1) && !TryShowNeighbor(index - 1, -1)) Close();
+        }
+        private void Navigate(int direction, bool isRepeat)
+        {
+            if (saving || canvas.IsMouseCaptureWithin || canvas.IsStylusCaptureWithin) return;
+            bool hasEdits = rotation != 0 || annotations.HasAnnotations;
+            if (hasEdits && isRepeat) return;
+
+            int index = store.Items.IndexOf(currentShot);
+            // The oldest capture can leave the shelf while it is being viewed.
+            if (index < 0) index = store.Items.Count;
+            TryShowNeighbor(index + direction, direction, hasEdits);
+        }
+        private bool TryShowNeighbor(int startIndex, int direction, bool confirmDiscard = false)
+        {
+            for (int next = startIndex; next >= 0 && next < store.Items.Count; next += direction)
+            {
+                Shot target = store.Items[next];
+                if (target.Image == null) continue;
+                BitmapSource image;
+                try { image = Store.ReadImage(target.Path); }
+                catch (Exception ex)
+                {
+                    if (!(ex is IOException || ex is UnauthorizedAccessException || ex is NotSupportedException || ex is FileFormatException)) throw;
+                    info.Text = "相邻图片无法打开。";
+                    continue;
+                }
+
+                if (confirmDiscard)
+                {
+                    var choice = MessageBox.Show(this, "切换图片会放弃当前尚未保存的旋转或标注。要继续吗？", "切换图片",
+                        MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+                    if (choice != MessageBoxResult.Yes || !store.Items.Contains(target)) return false;
+                }
+
+                annotations.ResetImage(image);
+                currentShot = target;
+                original = image;
+                rotation = 0;
+                canvas.Width = image.PixelWidth; canvas.Height = image.PixelHeight;
+                canvas.Background = new ImageBrush(image) { Stretch = Stretch.Fill };
+                filename.Text = Path.GetFileName(target.Path);
+                FitImage();
+                return true;
+            }
+            return false;
         }
         internal void FitImage()
         {

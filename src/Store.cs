@@ -303,13 +303,14 @@ namespace Snapline
             while (Items.Count > Limit) Items.RemoveAt(Items.Count - 1);
             Notify();
         }
-        internal void Remove(Shot shot)
+        internal bool Remove(Shot shot)
         {
             // Only the app-owned copy can be removed; imported source files are untouched.
-            if (!Items.Contains(shot) || !Owns(shot.Path)) return;
+            if (!Items.Contains(shot) || !Owns(shot.Path)) return false;
             File.Delete(shot.Path);
             Items.Remove(shot);
             Notify();
+            return true;
         }
         internal bool Owns(string path)
         {

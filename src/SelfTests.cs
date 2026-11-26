@@ -84,6 +84,63 @@ namespace Snapline
             }
             var result = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32); result.Render(visual); result.Freeze(); return result;
         }
+        private static void VerifyPreviewNavigation(string root)
+        {
+            var store = new Store(Path.Combine(root, "preview-navigation"));
+            store.Add(ShapeImage(480, 320, "Oldest"));
+            store.Add(ShapeImage(640, 400, "Middle"));
+            store.Add(ShapeImage(960, 540, "Newest"));
+            Shot newest = store.Items[0], middle = store.Items[1], oldest = store.Items[2];
+            var preview = new Preview(store, middle, false);
+            Func<Key, bool> press = delegate(Key key)
+            {
+                var handle = new System.Windows.Interop.WindowInteropHelper(preview).EnsureHandle();
+                var source = System.Windows.Interop.HwndSource.FromHwnd(handle);
+                var args = new KeyEventArgs(Keyboard.PrimaryDevice, source, Environment.TickCount, key) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+                preview.RaiseEvent(args);
+                return args.Handled;
+            };
+            try
+            {
+                var content = (FrameworkElement)preview.Content;
+                content.Measure(new Size(1000, 700)); content.Arrange(new Rect(0, 0, 1000, 700));
+                var canvas = Descendants<InkCanvas>(content).Single();
+                preview.ChangeZoom(2);
+                Check(press(Key.Left) && canvas.Width == 960 && preview.Zoom <= 1
+                    && Descendants<TextBlock>(content).Any(label => label.Text == Path.GetFileName(newest.Path)),
+                    "Left opens the newer shelf image in the same preview and fits it");
+                Check(press(Key.Left) && canvas.Width == 960, "Left stops at the first shelf image");
+                Check(press(Key.Right) && canvas.Width == 640 && press(Key.Right) && canvas.Width == 480,
+                    "Right opens older images in shelf order");
+                Check(press(Key.Right) && canvas.Width == 480, "Right stops at the last shelf image");
+                store.Add(ShapeImage(1080, 660, "New capture"));
+                Check(press(Key.Left) && canvas.Width == 640, "collecting a new image preserves the preview position");
+                Check(press(Key.Left) && canvas.Width == 960, "preview can switch after a new capture arrives");
+
+                preview.Rotate(90);
+                var saved = new TaskCompletionSource<bool>();
+                preview.Closed += delegate { saved.SetResult(true); };
+                Descendants<Button>(content).Single(button => Equals(button.Tag, "save")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                CollectionTests.Wait(saved.Task);
+                Check(Store.ReadImage(newest.Path).PixelWidth == 540 && Store.ReadImage(middle.Path).PixelWidth == 640,
+                    "saving after navigation updates the displayed image only");
+
+                Shot lastRemaining = store.Items[0];
+                preview = new Preview(store, oldest, false);
+                bool closed = false;
+                preview.Closed += delegate { closed = true; };
+                Check(press(Key.Left) && press(Key.Delete) && !closed && !File.Exists(middle.Path) && File.Exists(oldest.Path)
+                    && preview.RenderEdited().PixelWidth == 480, "Delete removes the displayed image and opens its next neighbor");
+                Check(press(Key.Delete) && !closed && !File.Exists(oldest.Path) && File.Exists(newest.Path)
+                    && preview.RenderEdited().PixelWidth == 540, "Delete on the last image opens its previous neighbor");
+                Descendants<Button>((FrameworkElement)preview.Content).Single(button => Equals(button.Tag, "delete")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Check(!closed && !File.Exists(newest.Path) && store.Items.Count == 1 && preview.RenderEdited().PixelWidth == 1080,
+                    "preview trash button uses the same delete and continue behavior");
+                Check(press(Key.Delete) && closed && !File.Exists(lastRemaining.Path) && store.Items.Count == 0,
+                    "Delete closes the preview when the only remaining image is removed");
+            }
+            finally { preview.Close(); CollectionTests.Wait(store.StopAsync()); }
+        }
         internal static int Run(string report)
         {
             SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
@@ -473,6 +530,7 @@ namespace Snapline
                     Check(new Store(previewStore.Root).Items.Count == 0, "deleted preview image stays removed after restart");
                 }
                 finally { editor.Close(); CollectionTests.Wait(previewStore.StopAsync()); }
+                VerifyPreviewNavigation(root);
                 var bounded = new Store(Path.Combine(root, "bounded"));
                 for (int i = 0; i < Store.Limit + 1; i++)
                 {
