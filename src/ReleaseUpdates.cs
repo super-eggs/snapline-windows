@@ -19,6 +19,7 @@ namespace Snapline
         private const string Repository = "super-eggs/snapline-windows";
         private const string Releases = "https://github.com/" + Repository + "/releases/";
         private const string LatestRelease = "https://api.github.com/repos/" + Repository + "/releases/latest";
+        private const string ChecksumsFile = "SHA256SUMS.txt";
         private const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\{BBFEDE84-A60E-4F11-9CC5-1EE29BA57425}_is1";
         private const int MaxInstallerBytes = 100 * 1024 * 1024;
 
@@ -33,9 +34,8 @@ namespace Snapline
 
             internal Asset Package(bool installed)
             {
-                string version = Tag.Substring(1);
-                string name = installed ? "Snapline-Setup-" + version + "-x64.exe" : "Snapline-Portable-" + version + "-x64.zip";
-                string expectedUrl = Releases + "download/" + Tag + "/" + name;
+                string name = PackageName(Tag, installed);
+                string expectedUrl = AssetUrl(Tag, name);
                 return Assets == null ? null : Assets.FirstOrDefault(asset => asset != null && asset.Name == name
                     && asset.State == "uploaded" && asset.Url == expectedUrl);
             }
@@ -58,6 +58,18 @@ namespace Snapline
             [DataMember(Name = "browser_download_url")] internal string Url { get; set; }
             [DataMember(Name = "size")] internal long Size { get; set; }
             [DataMember(Name = "digest")] internal string Digest { get; set; }
+            internal bool FromChecksumManifest { get; set; }
+        }
+
+        private static string PackageName(string tag, bool installed)
+        {
+            string version = tag.Substring(1);
+            return installed ? "Snapline-Setup-" + version + "-x64.exe" : "Snapline-Portable-" + version + "-x64.zip";
+        }
+
+        private static string AssetUrl(string tag, string name)
+        {
+            return Releases + "download/" + tag + "/" + name;
         }
 
         internal static string InstalledDirectory(string runningExe)
@@ -78,19 +90,76 @@ namespace Snapline
             {
                 client.Timeout = TimeSpan.FromSeconds(12);
                 client.MaxResponseContentBufferSize = 1024 * 1024;
-                client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
-                using (var response = await client.GetAsync(LatestRelease).ConfigureAwait(false))
+                return await CheckLatestAsync(client, current).ConfigureAwait(false);
+            }
+        }
+
+        internal static async Task<Release> CheckLatestAsync(HttpClient client, Version current)
+        {
+            using (var request = new HttpRequestMessage(HttpMethod.Get, LatestRelease))
+            {
+                request.Headers.Accept.ParseAdd("application/vnd.github+json");
+                using (var response = await client.SendAsync(request).ConfigureAwait(false))
                 {
-                    if ((int)response.StatusCode == 429 || (int)response.StatusCode == 403)
-                        throw new InvalidDataException("GitHub 暂时限制了更新查询，请稍后重试。");
-                    response.EnsureSuccessStatusCode();
-                    using (var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                    if ((int)response.StatusCode != 429 && (int)response.StatusCode != 403)
                     {
-                        var release = (Release)new DataContractJsonSerializer(typeof(Release)).ReadObject(stream);
-                        return NewerRelease(release, current);
+                        response.EnsureSuccessStatusCode();
+                        using (var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                        {
+                            var release = (Release)new DataContractJsonSerializer(typeof(Release)).ReadObject(stream);
+                            return NewerRelease(release, current);
+                        }
                     }
                 }
             }
+            return await CheckPublishedDownloadsAsync(client, current).ConfigureAwait(false);
+        }
+
+        private static async Task<Release> CheckPublishedDownloadsAsync(HttpClient client, Version current)
+        {
+            using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12)))
+            {
+                var latest = new Uri(Releases + "latest/download/" + ChecksumsFile);
+                Uri manifestUrl;
+                using (var response = await client.GetAsync(latest, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false))
+                {
+                    if (!IsRedirect(response) || response.Headers.Location == null)
+                        throw new InvalidDataException("暂时无法从 GitHub 确认最新版本，请前往 Snapline 发布页查看。");
+                    manifestUrl = new Uri(latest, response.Headers.Location);
+                }
+
+                // The official latest-asset link redirects to the stable release's versioned manifest.
+                var match = Regex.Match(manifestUrl.AbsoluteUri,
+                    @"\A" + Regex.Escape(Releases + "download/") + @"([^/?#]+)/" + Regex.Escape(ChecksumsFile) + @"\z");
+                if (!match.Success) throw new InvalidDataException("GitHub 返回的更新校验文件地址异常。");
+                var release = NewerRelease(new Release { Tag = match.Groups[1].Value }, current);
+                if (release == null) return null;
+
+                string manifest;
+                using (var response = await GetAssetAsync(client, manifestUrl, timeout.Token).ConfigureAwait(false))
+                {
+                    response.EnsureSuccessStatusCode();
+                    using (timeout.Token.Register(response.Dispose))
+                    {
+                        await response.Content.LoadIntoBufferAsync(4096).ConfigureAwait(false);
+                        manifest = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    }
+                }
+                release.Assets = new[] { ManifestPackage(release.Tag, manifest, true), ManifestPackage(release.Tag, manifest, false) };
+                return release;
+            }
+        }
+
+        private static Asset ManifestPackage(string tag, string manifest, bool installed)
+        {
+            string name = PackageName(tag, installed);
+            var matches = Regex.Matches(manifest, @"(?m)^([0-9a-fA-F]{64})  " + Regex.Escape(name) + @"\r?$");
+            if (matches.Count != 1) throw new InvalidDataException("GitHub 发布的 SHA-256 校验文件不完整或存在冲突。");
+            return new Asset
+            {
+                Name = name, State = "uploaded", Url = AssetUrl(tag, name),
+                Digest = "sha256:" + matches[0].Groups[1].Value, FromChecksumManifest = true
+            };
         }
 
         internal static Release NewerRelease(Release release, Version current)
@@ -108,7 +177,7 @@ namespace Snapline
         {
             if (asset.Digest == null || !Regex.IsMatch(asset.Digest, @"\Asha256:[0-9a-fA-F]{64}\z"))
                 throw new InvalidDataException("这个安装包缺少有效的 SHA-256 校验值，请稍后重试。");
-            if (asset.Size <= 0 || asset.Size > MaxInstallerBytes)
+            if (!asset.FromChecksumManifest && (asset.Size <= 0 || asset.Size > MaxInstallerBytes))
                 throw new InvalidDataException("安装包大小异常，请稍后重试。");
 
             using (var client = CreateClient())
@@ -116,6 +185,10 @@ namespace Snapline
             using (var response = await GetAssetAsync(client, new Uri(asset.Url), timeout.Token).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
+                // The published checksum file has hashes only. Use the official download's byte length.
+                long size = asset.FromChecksumManifest ? response.Content.Headers.ContentLength.GetValueOrDefault() : asset.Size;
+                if (size <= 0 || size > MaxInstallerBytes)
+                    throw new InvalidDataException("安装包大小异常，请稍后重试。");
                 string directory = Path.Combine(Path.GetTempPath(), "Snapline");
                 Directory.CreateDirectory(directory);
                 string path = Path.Combine(directory, "Snapline-Update.exe");
@@ -131,14 +204,14 @@ namespace Snapline
                         using (timeout.Token.Register(download.Dispose))
                             while ((read = await download.ReadAsync(buffer, 0, buffer.Length, timeout.Token).ConfigureAwait(false)) != 0)
                             {
-                                if (file.Position + read > asset.Size)
+                                if (file.Position + read > size)
                                     throw new InvalidDataException("安装包大小与发布记录不符。");
                                 await file.WriteAsync(buffer, 0, read, timeout.Token).ConfigureAwait(false);
                             }
                         await file.FlushAsync(timeout.Token).ConfigureAwait(false);
                     }
                     file = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    VerifyInstaller(file, asset.Size, asset.Digest);
+                    VerifyInstaller(file, size, asset.Digest);
                     return new VerifiedInstaller(file);
                 }
                 catch
@@ -168,6 +241,12 @@ namespace Snapline
             return client;
         }
 
+        private static bool IsRedirect(HttpResponseMessage response)
+        {
+            int status = (int)response.StatusCode;
+            return status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
+        }
+
         private static async Task<HttpResponseMessage> GetAssetAsync(HttpClient client, Uri uri, CancellationToken cancellation)
         {
             for (int attempt = 0; attempt < 4; attempt++)
@@ -176,8 +255,7 @@ namespace Snapline
                     || (uri.Host != "github.com" && uri.Host != "release-assets.githubusercontent.com" && uri.Host != "objects.githubusercontent.com"))
                     throw new InvalidDataException("安装包下载地址异常。");
                 var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellation).ConfigureAwait(false);
-                int status = (int)response.StatusCode;
-                if (status != 301 && status != 302 && status != 303 && status != 307 && status != 308) return response;
+                if (!IsRedirect(response)) return response;
                 using (response)
                 {
                     if (response.Headers.Location == null) break;

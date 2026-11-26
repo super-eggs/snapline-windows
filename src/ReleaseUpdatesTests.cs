@@ -1,7 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Snapline
 {
@@ -43,6 +48,79 @@ namespace Snapline
             }
             catch (InvalidDataException) { rejected = true; }
             check(rejected, "installer verification accepts matching SHA-256 and rejects a same-size modified payload");
+
+            VerifyRateLimitedCheck(check);
+        }
+
+        private static void VerifyRateLimitedCheck(Action<bool, string> check)
+        {
+            const string api = "https://api.github.com/repos/super-eggs/snapline-windows/releases/latest";
+            const string releases = "https://github.com/super-eggs/snapline-windows/releases/";
+            const string downloads = releases + "download/v1.0.12/";
+            const string latest = releases + "latest/download/SHA256SUMS.txt";
+            const string manifestUrl = downloads + "SHA256SUMS.txt";
+            const string cdn = "https://release-assets.githubusercontent.com/test/checksums";
+            const string setup = "Snapline-Setup-1.0.12-x64.exe";
+            const string zip = "Snapline-Portable-1.0.12-x64.zip";
+            string setupHash = new string('a', 64), zipHash = new string('b', 64);
+            string checksums = setupHash + "  " + setup + "\r\n" + zipHash + "  " + zip + "\r\n";
+            string target = manifestUrl;
+            string manifest = checksums;
+            int status = 403;
+            var calls = new List<string>();
+            using (var client = new HttpClient(new UpdateTransport(delegate(string url)
+            {
+                calls.Add(url);
+                if (url == api) return new HttpResponseMessage((HttpStatusCode)status);
+                if (url == latest || url == manifestUrl)
+                {
+                    var response = new HttpResponseMessage(HttpStatusCode.Redirect);
+                    response.Headers.Location = new Uri(url == latest ? target : cdn);
+                    return response;
+                }
+                if (url == cdn) return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(manifest) };
+                throw new InvalidOperationException("Unexpected updater request " + url);
+            })))
+            {
+                var current = new Version("1.0.10.0");
+                var release = ReleaseUpdates.CheckLatestAsync(client, current).GetAwaiter().GetResult();
+                var installer = release.Package(true);
+                var portable = release.Package(false);
+                check(release.Tag == "v1.0.12" && installer.Url == downloads + setup
+                    && installer.FromChecksumManifest && installer.Digest == "sha256:" + setupHash
+                    && portable.Url == downloads + zip && portable.Digest == "sha256:" + zipHash
+                    && calls.Count == 4, "a GitHub 403 falls back to the stable release and its official versioned checksums");
+
+                status = 429;
+                calls.Clear();
+                var latestInstalled = ReleaseUpdates.CheckLatestAsync(client, new Version("1.0.12.0")).GetAwaiter().GetResult();
+                check(latestInstalled == null && calls.Count == 2, "a GitHub 429 recognizes an already current version without downloading checksums");
+
+                target = "https://example.com/super-eggs/snapline-windows/releases/download/v1.0.12/SHA256SUMS.txt";
+                calls.Clear();
+                bool rejected = false;
+                try { ReleaseUpdates.CheckLatestAsync(client, current).GetAwaiter().GetResult(); }
+                catch (InvalidDataException) { rejected = true; }
+                check(rejected && calls.Count == 2, "the updater refuses a latest-release redirect outside the official repository");
+
+                target = manifestUrl;
+                manifest = checksums + setupHash + "  " + setup + "\r\n";
+                rejected = false;
+                try { ReleaseUpdates.CheckLatestAsync(client, current).GetAwaiter().GetResult(); }
+                catch (InvalidDataException) { rejected = true; }
+                check(rejected, "the updater refuses duplicate package entries in the checksum manifest");
+            }
+        }
+
+        private sealed class UpdateTransport : HttpMessageHandler
+        {
+            private readonly Func<string, HttpResponseMessage> respond;
+            internal UpdateTransport(Func<string, HttpResponseMessage> respond) { this.respond = respond; }
+
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(respond(request.RequestUri.AbsoluteUri));
+            }
         }
     }
 }
