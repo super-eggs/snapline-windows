@@ -222,7 +222,125 @@
       <ol class="changelog-entries" role="list">
         <!-- releases:start -->
         <li class="changelog-entry">
-          <div class="changelog-version"><h3>v1.0.2</h3><time datetime="2026-11-20">Nov 20, 2026</time></div>
+          <div class="changelog-version">
+            <h3>v1.0.13</h3><time datetime="2026-11-26">Nov 26, 2026</time>
+            <span class="changelog-latest">Latest release</span>
+          </div>
+          <div class="changelog-content">
+            <ul class="changelog-notes">
+              <li>When GitHub rate-limits update checks, Snapline switches to the official release downloads and still verifies the installer&#39;s SHA-256 checksum.</li>
+              <li>If an older version reports a rate limit, download this release and upgrade once.</li>
+            </ul>
+            <div class="changelog-links">
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.13/Snapline-Setup-1.0.13-x64.exe">Download installer <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.13/Snapline-Portable-1.0.13-x64.zip">Download portable ZIP <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.13">v1.0.13 release <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </li>
+        <li class="changelog-entry">
+          <div class="changelog-version">
+            <h3>v1.0.12</h3><time datetime="2026-11-26">Nov 26, 2026</time>
+          </div>
+          <div class="changelog-content">
+            <ul class="changelog-notes">
+              <li>Smoother drawing, resizing, and moving of screenshot selections, especially with large selections and dual monitors, while keeping memory use low.</li>
+            </ul>
+            <div class="changelog-links">
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.12/Snapline-Setup-1.0.12-x64.exe">Download installer <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.12/Snapline-Portable-1.0.12-x64.zip">Download portable ZIP <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.12">v1.0.12 release <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </li>
+        <li class="changelog-entry">
+          <div class="changelog-version">
+            <h3>v1.0.11</h3><time datetime="2026-11-25">Nov 25, 2026</time>
+          </div>
+          <div class="changelog-content">
+            <ul class="changelog-notes">
+              <li>Added a tray toggle for opening the shelf by hovering at the top of the screen. Changes apply immediately and persist after restart. Ctrl+Alt+T and double-clicking the tray icon still open the shelf while hover is disabled.</li>
+            </ul>
+            <div class="changelog-links">
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.11/Snapline-Setup-1.0.11-x64.exe">Download installer <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.11/Snapline-Portable-1.0.11-x64.zip">Download portable ZIP <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.11">v1.0.11 release <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </li>
+        <li class="changelog-entry">
+          <div class="changelog-version">
+            <h3>v1.0.10</h3><time datetime="2026-11-25">Nov 25, 2026</time>
+          </div>
+          <div class="changelog-content">
+            <ul class="changelog-notes">
+              <li>Reduced memory peaks during capture and selection while preserving full-resolution output. Large capture buffers are reclaimed after the capture closes.</li>
+              <li>The tray menu loads on first open, and global shortcuts run on a lightweight message window.</li>
+            </ul>
+            <div class="changelog-links">
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/Snapline-Setup-1.0.10-x64.exe">Download installer <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/Snapline-Portable-1.0.10-x64.zip">Download portable ZIP <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.10">v1.0.10 release <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </li>
+        <li class="changelog-entry">
+          <div class="changelog-version">
+            <h3>v1.0.9</h3><time datetime="2026-11-24">Nov 24, 2026</time>
+          </div>
+          <div class="changelog-content">
+            <ul class="changelog-notes">
+              <li>The shelf slides down when you hover near the top of the screen and slides back up when you move away. Move the pointer back during dismissal to reverse the motion.</li>
+              <li>Fixed screenshot copying when background clipboard collection competes for access, and avoided failure messages when the image is already available to paste.</li>
+              <li>Tray startup registers shortcuts immediately and loads history thumbnails when you first open the shelf.</li>
+              <li>The capture shortcut starts immediately when Snapline&#39;s windows are hidden. Screen capture and backdrop preparation run in the background.</li>
+              <li>Kept pixel edges sharp when zooming, reduced unnecessary redraws while annotating, and saved preview edits in the background.</li>
+            </ul>
+            <div class="changelog-links">
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.9/Snapline-Setup-1.0.9-x64.exe">Download installer <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.9/Snapline-Portable-1.0.9-x64.zip">Download portable ZIP <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.9">v1.0.9 release <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </li>
+        <li class="changelog-entry">
+          <div class="changelog-version">
+            <h3>v1.0.4</h3><time datetime="2026-11-21">Nov 21, 2026</time>
+          </div>
+          <div class="changelog-content">
+            <ul class="changelog-notes">
+              <li>Fixed a GitHub Actions test for native control detection that depended on the physical cursor position.</li>
+              <li>Version tags now build the installer and portable ZIP, verify installation and uninstallation, and publish the release automatically.</li>
+            </ul>
+            <div class="changelog-links">
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.4/Snapline-Setup-1.0.4-x64.exe">Download installer <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.4/Snapline-Portable-1.0.4-x64.zip">Download portable ZIP <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.4">v1.0.4 release <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </li>
+        <li class="changelog-entry">
+          <div class="changelog-version">
+            <h3>v1.0.3</h3><time datetime="2026-11-21">Nov 21, 2026</time>
+          </div>
+          <div class="changelog-content">
+            <ul class="changelog-notes">
+              <li>Check GitHub for the latest stable version from the system tray menu.</li>
+              <li>The installed edition verifies the installer before opening Setup. Upgrading in place preserves screenshots and settings.</li>
+              <li>The portable edition opens the new ZIP download from the update prompt.</li>
+              <li>Drag a finished text annotation with the text or hand tool. Press Ctrl+Z to undo the move.</li>
+            </ul>
+            <div class="changelog-links">
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.3/Snapline-Setup-1.0.3-x64.exe">Download installer <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.3/Snapline-Portable-1.0.3-x64.zip">Download portable ZIP <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.3">v1.0.3 release <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </li>
+        <li class="changelog-entry">
+          <div class="changelog-version">
+            <h3>v1.0.2</h3><time datetime="2026-11-20">Nov 20, 2026</time>
+          </div>
           <div class="changelog-content">
             <ul class="changelog-notes">
               <li>Snapline retries copying when the clipboard is busy. If copying still fails, it confirms the screenshot was saved so you can copy it from the shelf.</li>
@@ -237,17 +355,33 @@
           </div>
         </li>
         <li class="changelog-entry">
-          <div class="changelog-version"><h3>v1.0.1</h3><time datetime="2026-10-12">Oct 12, 2026</time></div>
+          <div class="changelog-version">
+            <h3>v1.0.1</h3><time datetime="2026-10-12">Oct 12, 2026</time>
+          </div>
           <div class="changelog-content">
-            <p class="changelog-notes">Added the Snapline clothesline icon to the app, preview window, system tray, shortcuts, and installer.</p>
-            <div class="changelog-links"><a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.1">v1.0.1 release <span aria-hidden="true">↗</span></a></div>
+            <ul class="changelog-notes">
+              <li>Added the Snapline clothesline icon to the app, preview window, system tray, shortcuts, and installer.</li>
+            </ul>
+            <div class="changelog-links">
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.1/Snapline-Setup-x64.exe">Download installer <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.1/Snapline-Portable-x64.zip">Download portable ZIP <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.1">v1.0.1 release <span aria-hidden="true">↗</span></a>
+            </div>
           </div>
         </li>
         <li class="changelog-entry">
-          <div class="changelog-version"><h3>v1.0.0</h3><time datetime="2026-10-12">Oct 12, 2026</time></div>
+          <div class="changelog-version">
+            <h3>v1.0.0</h3><time datetime="2026-10-12">Oct 12, 2026</time>
+          </div>
           <div class="changelog-content">
-            <p class="changelog-notes">The first Windows release included clipboard collection, shelf browsing, click-to-copy, image previews, and pen annotations.</p>
-            <div class="changelog-links"><a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.0">v1.0.0 release <span aria-hidden="true">↗</span></a></div>
+            <ul class="changelog-notes">
+              <li>The first Windows release included clipboard collection, shelf browsing, click-to-copy, image previews, and pen annotations.</li>
+            </ul>
+            <div class="changelog-links">
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.0/Snapline-Setup-x64.exe">Download installer <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.0/Snapline-Portable-x64.zip">Download portable ZIP <span aria-hidden="true">↓</span></a>
+              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.0">v1.0.0 release <span aria-hidden="true">↗</span></a>
+            </div>
           </div>
         </li>
         <!-- releases:end -->

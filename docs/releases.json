@@ -1,0 +1,190 @@
+[
+  {
+    "tag": "v1.0.13",
+    "date": "2026-11-26",
+    "notes": {
+      "zh": [
+        "检查更新遇到 GitHub 限流时，会自动使用官方发布入口，安装包仍会校验 SHA-256。",
+        "如果旧版本提示查询限流，请从本发布页手动下载新版并升级一次。"
+      ],
+      "en": [
+        "When GitHub rate-limits update checks, Snapline switches to the official release downloads and still verifies the installer's SHA-256 checksum.",
+        "If an older version reports a rate limit, download this release and upgrade once."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.13",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.13/Snapline-Setup-1.0.13-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.13/Snapline-Portable-1.0.13-x64.zip"
+  },
+  {
+    "tag": "v1.0.12",
+    "date": "2026-11-26",
+    "notes": {
+      "zh": [
+        "修复截图时拖动、拉伸和移动选区的卡顿，大选区和双屏截图更流畅，同时保留低内存占用。"
+      ],
+      "en": [
+        "Smoother drawing, resizing, and moving of screenshot selections, especially with large selections and dual monitors, while keeping memory use low."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.12",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.12/Snapline-Setup-1.0.12-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.12/Snapline-Portable-1.0.12-x64.zip"
+  },
+  {
+    "tag": "v1.0.11",
+    "date": "2026-11-25",
+    "notes": {
+      "zh": [
+        "托盘菜单新增「顶部悬停展开晾衣绳」开关，切换立即生效并在重启后保留。关闭后仍可用 Ctrl+Alt+T 或双击托盘图标手动展开。"
+      ],
+      "en": [
+        "Added a tray toggle for opening the shelf by hovering at the top of the screen. Changes apply immediately and persist after restart. Ctrl+Alt+T and double-clicking the tray icon still open the shelf while hover is disabled."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.11",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.11/Snapline-Setup-1.0.11-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.11/Snapline-Portable-1.0.11-x64.zip"
+  },
+  {
+    "tag": "v1.0.10",
+    "date": "2026-11-25",
+    "notes": {
+      "zh": [
+        "降低截图和框选时的内存峰值，保留原始分辨率。大尺寸截图关闭后，在后台回收图像缓冲。",
+        "托盘菜单首次打开时加载，后台快捷键使用轻量消息窗口。"
+      ],
+      "en": [
+        "Reduced memory peaks during capture and selection while preserving full-resolution output. Large capture buffers are reclaimed after the capture closes.",
+        "The tray menu loads on first open, and global shortcuts run on a lightweight message window."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.10",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/Snapline-Setup-1.0.10-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/Snapline-Portable-1.0.10-x64.zip"
+  },
+  {
+    "tag": "v1.0.9",
+    "date": "2026-11-24",
+    "notes": {
+      "zh": [
+        "鼠标移到屏幕顶部时，晾衣绳缓缓滑下，移开后滑回顶部。收起途中移回鼠标，面板会反向滑回。",
+        "修复截图复制时与后台剪贴板收集争用，以及图片已可粘贴时仍提示复制失败的情况。",
+        "托盘启动时先准备快捷键，首次展开晾衣绳时再加载历史缩略图。",
+        "晾衣绳收起时按快捷键可以直接开始截图，抓屏和暗色背景在后台准备。",
+        "放大预览时保留清晰像素边缘，减少标注时的重复绘制，并在后台保存预览修改。"
+      ],
+      "en": [
+        "The shelf slides down when you hover near the top of the screen and slides back up when you move away. Move the pointer back during dismissal to reverse the motion.",
+        "Fixed screenshot copying when background clipboard collection competes for access, and avoided failure messages when the image is already available to paste.",
+        "Tray startup registers shortcuts immediately and loads history thumbnails when you first open the shelf.",
+        "The capture shortcut starts immediately when Snapline's windows are hidden. Screen capture and backdrop preparation run in the background.",
+        "Kept pixel edges sharp when zooming, reduced unnecessary redraws while annotating, and saved preview edits in the background."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.9",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.9/Snapline-Setup-1.0.9-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.9/Snapline-Portable-1.0.9-x64.zip"
+  },
+  {
+    "tag": "v1.0.4",
+    "date": "2026-11-21",
+    "notes": {
+      "zh": [
+        "修复 GitHub Actions 原生控件识别自检受真实鼠标位置干扰的问题。",
+        "正式版本标签可自动构建安装包和便携版，完成安装与卸载检查后发布。"
+      ],
+      "en": [
+        "Fixed a GitHub Actions test for native control detection that depended on the physical cursor position.",
+        "Version tags now build the installer and portable ZIP, verify installation and uninstallation, and publish the release automatically."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.4",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.4/Snapline-Setup-1.0.4-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.4/Snapline-Portable-1.0.4-x64.zip"
+  },
+  {
+    "tag": "v1.0.3",
+    "date": "2026-11-21",
+    "notes": {
+      "zh": [
+        "右键系统托盘图标可手动检查 GitHub 上的最新正式版。",
+        "安装版确认后下载并校验安装包，可在原目录升级，保留截图和设置。",
+        "免安装版可从更新提示打开新版 ZIP 下载。",
+        "文字标注确认后，可用文字或手形工具拖动调整位置，并用 Ctrl+Z 撤销移动。"
+      ],
+      "en": [
+        "Check GitHub for the latest stable version from the system tray menu.",
+        "The installed edition verifies the installer before opening Setup. Upgrading in place preserves screenshots and settings.",
+        "The portable edition opens the new ZIP download from the update prompt.",
+        "Drag a finished text annotation with the text or hand tool. Press Ctrl+Z to undo the move."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.3",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.3/Snapline-Setup-1.0.3-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.3/Snapline-Portable-1.0.3-x64.zip"
+  },
+  {
+    "tag": "v1.0.2",
+    "date": "2026-11-20",
+    "notes": {
+      "zh": [
+        "截图完成时如果剪贴板被占用，自动重试复制。持续失败时提示截图已保存，可从晾衣绳重新复制。",
+        "右键系统托盘图标可查看当前运行版本。",
+        "安装包和免安装版文件名都带有版本号。",
+        "可覆盖安装升级，保留截图与配置。"
+      ],
+      "en": [
+        "Snapline retries copying when the clipboard is busy. If copying still fails, it confirms the screenshot was saved so you can copy it from the shelf.",
+        "The tray menu shows the version you’re running.",
+        "Installer and portable ZIP filenames include the version number."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.2",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Setup-1.0.2-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Portable-1.0.2-x64.zip"
+  },
+  {
+    "tag": "v1.0.1",
+    "date": "2026-10-12",
+    "notes": {
+      "zh": [
+        "新增 Snapline 专属图标：蓝色弧形晾衣绳、金色夹子与截图卡片。",
+        "程序文件、预览窗口、系统托盘、安装包和快捷方式统一使用新图标。",
+        "图标内含 16–256 像素的九种尺寸，支持 Windows 不同缩放比例。",
+        "可覆盖安装升级，保留截图与配置。"
+      ],
+      "en": [
+        "Added the Snapline clothesline icon to the app, preview window, system tray, shortcuts, and installer."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.1",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.1/Snapline-Setup-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.1/Snapline-Portable-x64.zip"
+  },
+  {
+    "tag": "v1.0.0",
+    "date": "2026-10-12",
+    "notes": {
+      "zh": [
+        "首个 Windows 版本，支持剪贴板图片收集、晾衣绳浏览、单击复制、图片预览和画笔标注。"
+      ],
+      "en": [
+        "The first Windows release included clipboard collection, shelf browsing, click-to-copy, image previews, and pen annotations."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.0",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.0/Snapline-Setup-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.0/Snapline-Portable-x64.zip"
+  }
+]
