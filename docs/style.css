@@ -122,9 +122,10 @@ kbd { font: inherit; }
 
 .changelog-section { display: grid; grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); gap: clamp(32px, 6vw, 90px); padding-bottom: 96px; }
 .changelog-heading p { color: var(--muted); font-size: 14px; margin-top: 15px; max-width: 32ch; }
+.changelog-history { min-width: 0; }
 .changelog-entries { margin: 0; padding: 0; list-style: none; border-bottom: 1px solid var(--line); }
 .changelog-entry { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 14px 25px; padding: 23px 0 19px; border-top: 1px solid var(--line); }
-.changelog-entry:first-child { border-top: 2px solid var(--blue); }
+.changelog-history > .changelog-entries > .changelog-entry:first-child { border-top: 2px solid var(--blue); }
 .changelog-version h3 { font-size: 21px; line-height: 1.25; font-variant-numeric: tabular-nums; }
 .changelog-version time { display: block; color: var(--muted); font-size: 12px; margin-top: 5px; }
 .changelog-latest { display: inline-block; margin-top: 9px; padding: 1px 8px; border-radius: 4px; background: #e5edff; color: #244eb7; font-size: 11px; font-weight: 650; }
@@ -135,6 +136,9 @@ kbd { font: inherit; }
 .changelog-links { display: flex; flex-wrap: wrap; gap: 2px 18px; margin-top: 9px; }
 .changelog-links a { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: var(--blue); font-size: 13px; font-weight: 600; }
 .changelog-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.changelog-older > summary { padding: 14px 0; cursor: pointer; color: var(--blue); font-size: 13px; font-weight: 650; }
+.changelog-older > summary:hover { text-decoration: underline; text-underline-offset: 3px; }
+.changelog-older > summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
 
 .download-section { padding-bottom: 46px; }
 .download-card { display: grid; grid-template-columns: 1.1fr .9fr; align-items: center; gap: 70px; padding: 60px 70px; background: #275ddf; color: #fff; border-radius: 28px; position: relative; overflow: hidden; }

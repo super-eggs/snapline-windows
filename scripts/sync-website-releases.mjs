@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 const releasePage = 'https://github.com/super-eggs/snapline-windows/releases';
 const start = '        <!-- releases:start -->';
 const end = '        <!-- releases:end -->';
+const visibleReleaseCount = 5;
 const historicalNotes = {
   'v1.0.0': {
     zh: ['首个 Windows 版本，支持剪贴板图片收集、晾衣绳浏览、单击复制、图片预览和画笔标注。'],
@@ -21,8 +22,14 @@ const historicalNotes = {
 };
 
 const labels = {
-  zh: { latest: '最新版本', installer: '下载安装包', portable: '下载免安装版', release: tag => `${tag} 发布页` },
-  en: { latest: 'Latest release', installer: 'Download installer', portable: 'Download portable ZIP', release: tag => `${tag} release` },
+  zh: {
+    latest: '最新版本', installer: '下载安装包', portable: '下载免安装版',
+    release: tag => `${tag} 发布页`, older: count => `查看更早的更新（${count} 条）`,
+  },
+  en: {
+    latest: 'Latest release', installer: 'Download installer', portable: 'Download portable ZIP',
+    release: tag => `${tag} release`, older: count => `View ${count} earlier release${count === 1 ? '' : 's'}`,
+  },
 };
 
 function releaseNotes(body, tag) {
@@ -103,6 +110,27 @@ function releaseItem(release, locale, latest) {
   return lines;
 }
 
+function releaseHistory(releases, locale) {
+  const recent = releases.slice(0, visibleReleaseCount);
+  const older = releases.slice(visibleReleaseCount);
+  const lines = [
+    '        <ol class="changelog-entries" role="list">',
+    ...recent.flatMap((release, index) => releaseItem(release, locale, index === 0).map(line => '  ' + line)),
+    '        </ol>',
+  ];
+  if (older.length) {
+    lines.push(
+      '        <details class="changelog-older">',
+      `          <summary>${labels[locale].older(older.length)}</summary>`,
+      `          <ol class="changelog-entries" role="list" start="${visibleReleaseCount + 1}">`,
+      ...older.flatMap(release => releaseItem(release, locale, false).map(line => '    ' + line)),
+      '          </ol>',
+      '        </details>',
+    );
+  }
+  return lines;
+}
+
 const [, , releaseFile, expectedTag] = process.argv;
 const input = JSON.parse(await readFile(releaseFile, 'utf8'));
 const releases = input.flat()
@@ -131,7 +159,7 @@ const pages = await Promise.all([['zh', 'docs/index.html'], ['en', 'docs/en/inde
   if (startAt < 0 || endAt <= startAt || page.lastIndexOf(start) !== startAt || page.lastIndexOf(end) !== endAt) {
     throw new Error(`Missing or duplicate changelog markers in ${file}`);
   }
-  const history = releases.flatMap((release, index) => releaseItem(release, locale, index === 0)).join(newline);
+  const history = releaseHistory(releases, locale).join(newline);
   return [file, page.slice(0, startAt + start.length) + newline + history + newline + page.slice(endAt)];
 }));
 

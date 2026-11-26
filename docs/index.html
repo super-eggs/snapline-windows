@@ -218,193 +218,200 @@
         <h2 id="changelog-title">更新日志</h2>
         <p>右键 Snapline 的托盘图标，可查看当前运行版本。</p>
       </div>
-      <ol class="changelog-entries" role="list">
+      <div class="changelog-history">
         <!-- releases:start -->
-        <li class="changelog-entry">
-          <div class="changelog-version">
-            <h3>v1.0.14</h3><time datetime="2026-11-26">2026年11月26日</time>
-            <span class="changelog-latest">最新版本</span>
-          </div>
-          <div class="changelog-content">
-            <ul class="changelog-notes">
-              <li>预览图片时，按 ← / → 可按晾衣绳顺序在同一个窗口查看上一张 / 下一张。</li>
-              <li>按 Delete 或点击垃圾桶可删除当前图片的晾衣绳副本。删除后优先打开下一张，位于末尾时回到上一张，删完时关闭预览。</li>
-            </ul>
-            <div class="changelog-links">
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.14/Snapline-Setup-1.0.14-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.14/Snapline-Portable-1.0.14-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.14">v1.0.14 发布页 <span aria-hidden="true">↗</span></a>
+        <ol class="changelog-entries" role="list">
+          <li class="changelog-entry">
+            <div class="changelog-version">
+              <h3>v1.0.14</h3><time datetime="2026-11-26">2026年11月26日</time>
+              <span class="changelog-latest">最新版本</span>
             </div>
-          </div>
-        </li>
-        <li class="changelog-entry">
-          <div class="changelog-version">
-            <h3>v1.0.13</h3><time datetime="2026-11-26">2026年11月26日</time>
-          </div>
-          <div class="changelog-content">
-            <ul class="changelog-notes">
-              <li>检查更新遇到 GitHub 限流时，会自动使用官方发布入口，安装包仍会校验 SHA-256。</li>
-              <li>如果旧版本提示查询限流，请从本发布页手动下载新版并升级一次。</li>
-            </ul>
-            <div class="changelog-links">
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.13/Snapline-Setup-1.0.13-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.13/Snapline-Portable-1.0.13-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.13">v1.0.13 发布页 <span aria-hidden="true">↗</span></a>
+            <div class="changelog-content">
+              <ul class="changelog-notes">
+                <li>预览图片时，按 ← / → 可按晾衣绳顺序在同一个窗口查看上一张 / 下一张。</li>
+                <li>按 Delete 或点击垃圾桶可删除当前图片的晾衣绳副本。删除后优先打开下一张，位于末尾时回到上一张，删完时关闭预览。</li>
+              </ul>
+              <div class="changelog-links">
+                <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.14/Snapline-Setup-1.0.14-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+                <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.14/Snapline-Portable-1.0.14-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+                <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.14">v1.0.14 发布页 <span aria-hidden="true">↗</span></a>
+              </div>
             </div>
-          </div>
-        </li>
-        <li class="changelog-entry">
-          <div class="changelog-version">
-            <h3>v1.0.12</h3><time datetime="2026-11-26">2026年11月26日</time>
-          </div>
-          <div class="changelog-content">
-            <ul class="changelog-notes">
-              <li>修复截图时拖动、拉伸和移动选区的卡顿，大选区和双屏截图更流畅，同时保留低内存占用。</li>
-            </ul>
-            <div class="changelog-links">
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.12/Snapline-Setup-1.0.12-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.12/Snapline-Portable-1.0.12-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.12">v1.0.12 发布页 <span aria-hidden="true">↗</span></a>
+          </li>
+          <li class="changelog-entry">
+            <div class="changelog-version">
+              <h3>v1.0.13</h3><time datetime="2026-11-26">2026年11月26日</time>
             </div>
-          </div>
-        </li>
-        <li class="changelog-entry">
-          <div class="changelog-version">
-            <h3>v1.0.11</h3><time datetime="2026-11-25">2026年11月25日</time>
-          </div>
-          <div class="changelog-content">
-            <ul class="changelog-notes">
-              <li>托盘菜单新增「顶部悬停展开晾衣绳」开关，切换立即生效并在重启后保留。关闭后仍可用 Ctrl+Alt+T 或双击托盘图标手动展开。</li>
-            </ul>
-            <div class="changelog-links">
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.11/Snapline-Setup-1.0.11-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.11/Snapline-Portable-1.0.11-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.11">v1.0.11 发布页 <span aria-hidden="true">↗</span></a>
+            <div class="changelog-content">
+              <ul class="changelog-notes">
+                <li>检查更新遇到 GitHub 限流时，会自动使用官方发布入口，安装包仍会校验 SHA-256。</li>
+                <li>如果旧版本提示查询限流，请从本发布页手动下载新版并升级一次。</li>
+              </ul>
+              <div class="changelog-links">
+                <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.13/Snapline-Setup-1.0.13-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+                <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.13/Snapline-Portable-1.0.13-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+                <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.13">v1.0.13 发布页 <span aria-hidden="true">↗</span></a>
+              </div>
             </div>
-          </div>
-        </li>
-        <li class="changelog-entry">
-          <div class="changelog-version">
-            <h3>v1.0.10</h3><time datetime="2026-11-25">2026年11月25日</time>
-          </div>
-          <div class="changelog-content">
-            <ul class="changelog-notes">
-              <li>降低截图和框选时的内存峰值，保留原始分辨率。大尺寸截图关闭后，在后台回收图像缓冲。</li>
-              <li>托盘菜单首次打开时加载，后台快捷键使用轻量消息窗口。</li>
-            </ul>
-            <div class="changelog-links">
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/Snapline-Setup-1.0.10-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/Snapline-Portable-1.0.10-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.10">v1.0.10 发布页 <span aria-hidden="true">↗</span></a>
+          </li>
+          <li class="changelog-entry">
+            <div class="changelog-version">
+              <h3>v1.0.12</h3><time datetime="2026-11-26">2026年11月26日</time>
             </div>
-          </div>
-        </li>
-        <li class="changelog-entry">
-          <div class="changelog-version">
-            <h3>v1.0.9</h3><time datetime="2026-11-24">2026年11月24日</time>
-          </div>
-          <div class="changelog-content">
-            <ul class="changelog-notes">
-              <li>鼠标移到屏幕顶部时，晾衣绳缓缓滑下，移开后滑回顶部。收起途中移回鼠标，面板会反向滑回。</li>
-              <li>修复截图复制时与后台剪贴板收集争用，以及图片已可粘贴时仍提示复制失败的情况。</li>
-              <li>托盘启动时先准备快捷键，首次展开晾衣绳时再加载历史缩略图。</li>
-              <li>晾衣绳收起时按快捷键可以直接开始截图，抓屏和暗色背景在后台准备。</li>
-              <li>放大预览时保留清晰像素边缘，减少标注时的重复绘制，并在后台保存预览修改。</li>
-            </ul>
-            <div class="changelog-links">
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.9/Snapline-Setup-1.0.9-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.9/Snapline-Portable-1.0.9-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.9">v1.0.9 发布页 <span aria-hidden="true">↗</span></a>
+            <div class="changelog-content">
+              <ul class="changelog-notes">
+                <li>修复截图时拖动、拉伸和移动选区的卡顿，大选区和双屏截图更流畅，同时保留低内存占用。</li>
+              </ul>
+              <div class="changelog-links">
+                <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.12/Snapline-Setup-1.0.12-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+                <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.12/Snapline-Portable-1.0.12-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+                <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.12">v1.0.12 发布页 <span aria-hidden="true">↗</span></a>
+              </div>
             </div>
-          </div>
-        </li>
-        <li class="changelog-entry">
-          <div class="changelog-version">
-            <h3>v1.0.4</h3><time datetime="2026-11-21">2026年11月21日</time>
-          </div>
-          <div class="changelog-content">
-            <ul class="changelog-notes">
-              <li>修复 GitHub Actions 原生控件识别自检受真实鼠标位置干扰的问题。</li>
-              <li>正式版本标签可自动构建安装包和便携版，完成安装与卸载检查后发布。</li>
-            </ul>
-            <div class="changelog-links">
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.4/Snapline-Setup-1.0.4-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.4/Snapline-Portable-1.0.4-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.4">v1.0.4 发布页 <span aria-hidden="true">↗</span></a>
+          </li>
+          <li class="changelog-entry">
+            <div class="changelog-version">
+              <h3>v1.0.11</h3><time datetime="2026-11-25">2026年11月25日</time>
             </div>
-          </div>
-        </li>
-        <li class="changelog-entry">
-          <div class="changelog-version">
-            <h3>v1.0.3</h3><time datetime="2026-11-21">2026年11月21日</time>
-          </div>
-          <div class="changelog-content">
-            <ul class="changelog-notes">
-              <li>右键系统托盘图标可手动检查 GitHub 上的最新正式版。</li>
-              <li>安装版确认后下载并校验安装包，可在原目录升级，保留截图和设置。</li>
-              <li>免安装版可从更新提示打开新版 ZIP 下载。</li>
-              <li>文字标注确认后，可用文字或手形工具拖动调整位置，并用 Ctrl+Z 撤销移动。</li>
-            </ul>
-            <div class="changelog-links">
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.3/Snapline-Setup-1.0.3-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.3/Snapline-Portable-1.0.3-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.3">v1.0.3 发布页 <span aria-hidden="true">↗</span></a>
+            <div class="changelog-content">
+              <ul class="changelog-notes">
+                <li>托盘菜单新增「顶部悬停展开晾衣绳」开关，切换立即生效并在重启后保留。关闭后仍可用 Ctrl+Alt+T 或双击托盘图标手动展开。</li>
+              </ul>
+              <div class="changelog-links">
+                <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.11/Snapline-Setup-1.0.11-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+                <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.11/Snapline-Portable-1.0.11-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+                <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.11">v1.0.11 发布页 <span aria-hidden="true">↗</span></a>
+              </div>
             </div>
-          </div>
-        </li>
-        <li class="changelog-entry">
-          <div class="changelog-version">
-            <h3>v1.0.2</h3><time datetime="2026-11-20">2026年11月20日</time>
-          </div>
-          <div class="changelog-content">
-            <ul class="changelog-notes">
-              <li>截图完成时如果剪贴板被占用，自动重试复制。持续失败时提示截图已保存，可从晾衣绳重新复制。</li>
-              <li>右键系统托盘图标可查看当前运行版本。</li>
-              <li>安装包和免安装版文件名都带有版本号。</li>
-              <li>可覆盖安装升级，保留截图与配置。</li>
-            </ul>
-            <div class="changelog-links">
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Setup-1.0.2-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Portable-1.0.2-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.2">v1.0.2 发布页 <span aria-hidden="true">↗</span></a>
+          </li>
+          <li class="changelog-entry">
+            <div class="changelog-version">
+              <h3>v1.0.10</h3><time datetime="2026-11-25">2026年11月25日</time>
             </div>
-          </div>
-        </li>
-        <li class="changelog-entry">
-          <div class="changelog-version">
-            <h3>v1.0.1</h3><time datetime="2026-10-12">2026年10月12日</time>
-          </div>
-          <div class="changelog-content">
-            <ul class="changelog-notes">
-              <li>新增 Snapline 专属图标：蓝色弧形晾衣绳、金色夹子与截图卡片。</li>
-              <li>程序文件、预览窗口、系统托盘、安装包和快捷方式统一使用新图标。</li>
-              <li>图标内含 16–256 像素的九种尺寸，支持 Windows 不同缩放比例。</li>
-              <li>可覆盖安装升级，保留截图与配置。</li>
-            </ul>
-            <div class="changelog-links">
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.1/Snapline-Setup-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.1/Snapline-Portable-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.1">v1.0.1 发布页 <span aria-hidden="true">↗</span></a>
+            <div class="changelog-content">
+              <ul class="changelog-notes">
+                <li>降低截图和框选时的内存峰值，保留原始分辨率。大尺寸截图关闭后，在后台回收图像缓冲。</li>
+                <li>托盘菜单首次打开时加载，后台快捷键使用轻量消息窗口。</li>
+              </ul>
+              <div class="changelog-links">
+                <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/Snapline-Setup-1.0.10-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+                <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/Snapline-Portable-1.0.10-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+                <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.10">v1.0.10 发布页 <span aria-hidden="true">↗</span></a>
+              </div>
             </div>
-          </div>
-        </li>
-        <li class="changelog-entry">
-          <div class="changelog-version">
-            <h3>v1.0.0</h3><time datetime="2026-10-12">2026年10月12日</time>
-          </div>
-          <div class="changelog-content">
-            <ul class="changelog-notes">
-              <li>首个 Windows 版本，支持剪贴板图片收集、晾衣绳浏览、单击复制、图片预览和画笔标注。</li>
-            </ul>
-            <div class="changelog-links">
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.0/Snapline-Setup-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.0/Snapline-Portable-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
-              <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.0">v1.0.0 发布页 <span aria-hidden="true">↗</span></a>
-            </div>
-          </div>
-        </li>
+          </li>
+        </ol>
+        <details class="changelog-older">
+          <summary>查看更早的更新（6 条）</summary>
+          <ol class="changelog-entries" role="list" start="6">
+            <li class="changelog-entry">
+              <div class="changelog-version">
+                <h3>v1.0.9</h3><time datetime="2026-11-24">2026年11月24日</time>
+              </div>
+              <div class="changelog-content">
+                <ul class="changelog-notes">
+                  <li>鼠标移到屏幕顶部时，晾衣绳缓缓滑下，移开后滑回顶部。收起途中移回鼠标，面板会反向滑回。</li>
+                  <li>修复截图复制时与后台剪贴板收集争用，以及图片已可粘贴时仍提示复制失败的情况。</li>
+                  <li>托盘启动时先准备快捷键，首次展开晾衣绳时再加载历史缩略图。</li>
+                  <li>晾衣绳收起时按快捷键可以直接开始截图，抓屏和暗色背景在后台准备。</li>
+                  <li>放大预览时保留清晰像素边缘，减少标注时的重复绘制，并在后台保存预览修改。</li>
+                </ul>
+                <div class="changelog-links">
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.9/Snapline-Setup-1.0.9-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.9/Snapline-Portable-1.0.9-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.9">v1.0.9 发布页 <span aria-hidden="true">↗</span></a>
+                </div>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="changelog-version">
+                <h3>v1.0.4</h3><time datetime="2026-11-21">2026年11月21日</time>
+              </div>
+              <div class="changelog-content">
+                <ul class="changelog-notes">
+                  <li>修复 GitHub Actions 原生控件识别自检受真实鼠标位置干扰的问题。</li>
+                  <li>正式版本标签可自动构建安装包和便携版，完成安装与卸载检查后发布。</li>
+                </ul>
+                <div class="changelog-links">
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.4/Snapline-Setup-1.0.4-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.4/Snapline-Portable-1.0.4-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.4">v1.0.4 发布页 <span aria-hidden="true">↗</span></a>
+                </div>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="changelog-version">
+                <h3>v1.0.3</h3><time datetime="2026-11-21">2026年11月21日</time>
+              </div>
+              <div class="changelog-content">
+                <ul class="changelog-notes">
+                  <li>右键系统托盘图标可手动检查 GitHub 上的最新正式版。</li>
+                  <li>安装版确认后下载并校验安装包，可在原目录升级，保留截图和设置。</li>
+                  <li>免安装版可从更新提示打开新版 ZIP 下载。</li>
+                  <li>文字标注确认后，可用文字或手形工具拖动调整位置，并用 Ctrl+Z 撤销移动。</li>
+                </ul>
+                <div class="changelog-links">
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.3/Snapline-Setup-1.0.3-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.3/Snapline-Portable-1.0.3-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.3">v1.0.3 发布页 <span aria-hidden="true">↗</span></a>
+                </div>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="changelog-version">
+                <h3>v1.0.2</h3><time datetime="2026-11-20">2026年11月20日</time>
+              </div>
+              <div class="changelog-content">
+                <ul class="changelog-notes">
+                  <li>截图完成时如果剪贴板被占用，自动重试复制。持续失败时提示截图已保存，可从晾衣绳重新复制。</li>
+                  <li>右键系统托盘图标可查看当前运行版本。</li>
+                  <li>安装包和免安装版文件名都带有版本号。</li>
+                  <li>可覆盖安装升级，保留截图与配置。</li>
+                </ul>
+                <div class="changelog-links">
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Setup-1.0.2-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Portable-1.0.2-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.2">v1.0.2 发布页 <span aria-hidden="true">↗</span></a>
+                </div>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="changelog-version">
+                <h3>v1.0.1</h3><time datetime="2026-10-12">2026年10月12日</time>
+              </div>
+              <div class="changelog-content">
+                <ul class="changelog-notes">
+                  <li>新增 Snapline 专属图标：蓝色弧形晾衣绳、金色夹子与截图卡片。</li>
+                  <li>程序文件、预览窗口、系统托盘、安装包和快捷方式统一使用新图标。</li>
+                  <li>图标内含 16–256 像素的九种尺寸，支持 Windows 不同缩放比例。</li>
+                  <li>可覆盖安装升级，保留截图与配置。</li>
+                </ul>
+                <div class="changelog-links">
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.1/Snapline-Setup-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.1/Snapline-Portable-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.1">v1.0.1 发布页 <span aria-hidden="true">↗</span></a>
+                </div>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="changelog-version">
+                <h3>v1.0.0</h3><time datetime="2026-10-12">2026年10月12日</time>
+              </div>
+              <div class="changelog-content">
+                <ul class="changelog-notes">
+                  <li>首个 Windows 版本，支持剪贴板图片收集、晾衣绳浏览、单击复制、图片预览和画笔标注。</li>
+                </ul>
+                <div class="changelog-links">
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.0/Snapline-Setup-x64.exe">下载安装包 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/download/v1.0.0/Snapline-Portable-x64.zip">下载免安装版 <span aria-hidden="true">↓</span></a>
+                  <a href="https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.0">v1.0.0 发布页 <span aria-hidden="true">↗</span></a>
+                </div>
+              </div>
+            </li>
+          </ol>
+        </details>
         <!-- releases:end -->
-      </ol>
+      </div>
     </section>
     <section class="download-section container" id="download" aria-labelledby="download-title">
       <div class="download-card reveal">
