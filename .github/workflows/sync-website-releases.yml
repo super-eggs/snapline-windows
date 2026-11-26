@@ -7,6 +7,8 @@ on:
         required: true
         type: string
   workflow_dispatch:
+  release:
+    types: [published]
   push:
     branches: [main]
     paths:
@@ -22,6 +24,7 @@ concurrency:
 
 jobs:
   sync:
+    if: github.event_name != 'release' || (!github.event.release.prerelease && startsWith(github.event.release.tag_name, 'v'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +33,7 @@ jobs:
       - name: Generate bilingual website release notes
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
         run: |
           gh api --paginate --slurp -H 'Accept: application/vnd.github+json' \
             "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
