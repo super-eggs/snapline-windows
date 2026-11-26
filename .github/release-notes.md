@@ -1,17 +1,17 @@
 ## 中文更新
 
-- 检查更新遇到 GitHub 限流时，会自动使用官方发布入口，安装包仍会校验 SHA-256。
-- 如果旧版本提示查询限流，请从本发布页手动下载新版并升级一次。
+- 预览图片时，按 ← / → 可按晾衣绳顺序在同一个窗口查看上一张 / 下一张。
+- 按 Delete 或点击垃圾桶可删除当前图片的晾衣绳副本。删除后优先打开下一张，位于末尾时回到上一张，删完时关闭预览。
 
 ## English updates
 
-- When GitHub rate-limits update checks, Snapline switches to the official release downloads and still verifies the installer's SHA-256 checksum.
-- If an older version reports a rate limit, download this release and upgrade once.
+- Press ← or → in the image preview to view the previous or next screenshot in shelf order, in the same window.
+- Press Delete or click the trash icon to remove the current shelf copy. The preview opens the next image, goes back to the previous one when you delete the last image in the row, and closes when the shelf is empty.
 
 ## 下载与安装
 
-- **Snapline-Setup-1.0.13-x64.exe** 为 Windows 10/11 x64 安装包。双击安装，从开始菜单启动。
-- **Snapline-Portable-1.0.13-x64.zip** 为免安装版。解压后运行 Snapline.exe。
+- **Snapline-Setup-1.0.14-x64.exe** 为 Windows 10/11 x64 安装包。双击安装，从开始菜单启动。
+- **Snapline-Portable-1.0.14-x64.zip** 为免安装版。解压后运行 Snapline.exe。
 - **SHA256SUMS.txt**：上述文件的 SHA-256 校验值。
 
 安装到当前用户目录，无需管理员权限；可选桌面快捷方式，可从 Windows 设置卸载。卸载保留 `%LOCALAPPDATA%\Snapline` 中的截图和配置。
