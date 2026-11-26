@@ -1,5 +1,23 @@
 [
   {
+    "tag": "v1.0.14",
+    "date": "2026-11-26",
+    "notes": {
+      "zh": [
+        "预览图片时，按 ← / → 可按晾衣绳顺序在同一个窗口查看上一张 / 下一张。",
+        "按 Delete 或点击垃圾桶可删除当前图片的晾衣绳副本。删除后优先打开下一张，位于末尾时回到上一张，删完时关闭预览。"
+      ],
+      "en": [
+        "Press ← or → in the image preview to view the previous or next screenshot in shelf order, in the same window.",
+        "Press Delete or click the trash icon to remove the current shelf copy. The preview opens the next image, goes back to the previous one when you delete the last image in the row, and closes when the shelf is empty."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.14",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.14/Snapline-Setup-1.0.14-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.14/Snapline-Portable-1.0.14-x64.zip"
+  },
+  {
     "tag": "v1.0.13",
     "date": "2026-11-26",
     "notes": {
