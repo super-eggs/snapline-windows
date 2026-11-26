@@ -17,8 +17,9 @@ namespace Snapline
         private ScreenCapture screen;
         private readonly Canvas stage;
         private readonly Canvas selectionLayer = new Canvas();
-        private readonly RectangleGeometry maskOpening = new RectangleGeometry();
-        private readonly System.Windows.Shapes.Rectangle outline = new System.Windows.Shapes.Rectangle { Stroke = Ui.Accent, StrokeThickness = 1, IsHitTestVisible = false };
+        private readonly CaptureMask mask;
+        private Rect revealed = Rect.Empty;
+        private readonly System.Windows.Shapes.Rectangle[] outline = new System.Windows.Shapes.Rectangle[4];
         private readonly Border toolbar;
         private readonly Button colorPickerButton;
         private readonly TextBlock hint;
@@ -59,11 +60,14 @@ namespace Snapline
             var desktop = new Image { Source = screen.Image, Width = stage.Width, Height = stage.Height, Stretch = Stretch.Fill, IsHitTestVisible = false };
             RenderOptions.SetBitmapScalingMode(desktop, BitmapScalingMode.NearestNeighbor);
             stage.Children.Add(desktop);
-            var mask = new GeometryGroup { FillRule = FillRule.EvenOdd };
-            mask.Children.Add(new RectangleGeometry(new Rect(0, 0, stage.Width, stage.Height)));
-            mask.Children.Add(maskOpening);
-            stage.Children.Add(new System.Windows.Shapes.Path { Data = mask, Fill = new SolidColorBrush(Color.FromArgb(130, 0, 0, 0)), IsHitTestVisible = false });
-            stage.Children.Add(selectionLayer); stage.Children.Add(outline);
+            mask = new CaptureMask(screen.Image.PixelWidth, screen.Image.PixelHeight);
+            stage.Children.Add(mask);
+            stage.Children.Add(selectionLayer);
+            for (int i = 0; i < outline.Length; i++)
+            {
+                outline[i] = new System.Windows.Shapes.Rectangle { Fill = Ui.Accent, IsHitTestVisible = false };
+                stage.Children.Add(outline[i]);
+            }
             for (int i = 0; i < handles.Length; i++)
             {
                 handles[i] = new System.Windows.Shapes.Rectangle { Width = 7, Height = 7, Fill = Brushes.White, Stroke = Ui.Accent, StrokeThickness = 1, IsHitTestVisible = false };
@@ -337,12 +341,19 @@ namespace Snapline
         {
             if (closed) return;
             Rect shown = selected || dragging ? selection : hover;
-            // Reveal the selection by cutting a hole in the mask over the single desktop image.
-            maskOpening.Rect = shown.IsEmpty ? new Rect() : shown;
-            outline.Visibility = shown.IsEmpty ? Visibility.Collapsed : Visibility.Visible;
-            if (!shown.IsEmpty)
+            if (shown != revealed)
             {
-                Canvas.SetLeft(outline, shown.Left); Canvas.SetTop(outline, shown.Top); outline.Width = shown.Width; outline.Height = shown.Height;
+                revealed = shown;
+                // Preserve the interior of a large selection when only its edges move.
+                mask.Reveal(shown);
+                foreach (var edge in outline) edge.Visibility = shown.IsEmpty ? Visibility.Collapsed : Visibility.Visible;
+                if (!shown.IsEmpty)
+                {
+                    SetOutlineEdge(outline[0], shown.Left, shown.Top, shown.Width, 1);
+                    SetOutlineEdge(outline[1], shown.Left, Math.Max(shown.Top, shown.Bottom - 1), shown.Width, 1);
+                    SetOutlineEdge(outline[2], shown.Left, shown.Top, 1, shown.Height);
+                    SetOutlineEdge(outline[3], Math.Max(shown.Left, shown.Right - 1), shown.Top, 1, shown.Height);
+                }
             }
             bool showHandles = selected && !pickingColor && !annotations.HasAnnotations;
             Point[] handlePoints = showHandles ? HandlePoints() : null;
@@ -371,6 +382,11 @@ namespace Snapline
                 double below = selection.Bottom + 40;
                 Canvas.SetTop(toolbar, below + toolbar.DesiredSize.Height < area.Bottom ? below : selection.Top - area.Top > toolbar.DesiredSize.Height + 42 ? selection.Top - toolbar.DesiredSize.Height - 40 : Math.Max(area.Top + 8, area.Bottom - toolbar.DesiredSize.Height - 8));
             }
+        }
+        private static void SetOutlineEdge(System.Windows.Shapes.Rectangle edge, double left, double top, double width, double height)
+        {
+            Canvas.SetLeft(edge, left); Canvas.SetTop(edge, top);
+            edge.Width = width; edge.Height = height;
         }
         private void Reset()
         {

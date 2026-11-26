@@ -107,6 +107,12 @@ namespace Snapline
                 check(shownPixels[outside] == 20 && shownPixels[outside + 1] == 83 && shownPixels[outside + 2] == 78 && shownPixels[outside + 3] == 255,
                     "capture mask stays opaque over the desktop and preserves the dimming strength");
                 File.WriteAllBytes(Path.Combine(artifacts, "capture-preview-mask.png"), Store.Encode(previewRender));
+                Func<int, int, int> red = (x, y) => shownPixels[(y * 320 + x) * 4 + 2];
+                check(red(127, 127) == 160 && red(128, 128) == 160 && red(127, 200) == 78 && red(128, 200) == 78
+                    && red(270, 127) == 78 && red(270, 128) == 78,
+                    "mask tiles meet without seams inside and outside the selection");
+                previewCapture.UpdateHover(new Point(300, 200)); shownPixels = Pixels(renderPreview());
+                check(shownPixels[outside + 2] == 160, "full-screen selection removes fully covered mask tiles");
                 previewScreen.Windows.Clear(); previewScreen.Windows.Add(new CaptureTarget(IntPtr.Zero, new Rect(160, 100, 100, 100)));
                 previewCapture.UpdateHover(new Point(180, 120)); shownPixels = Pixels(renderPreview());
                 check(shownPixels[inside] == 59 && shownPixels[inside + 1] == 54 && shownPixels[inside + 2] == 78,
