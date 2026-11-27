@@ -41,7 +41,7 @@
         <h1 id="hero-title">刚截的图，<br><span>一直在手边。</span></h1>
       </div>
       <div class="hero-details">
-        <p class="hero-description">用一根晾衣绳，收好最近的截图。<br>随手复制、圈出重点、贴到桌面，也能<a href="#ocr">提取截图文字</a>。</p>
+        <p class="hero-description">用一根晾衣绳，收好最近的截图。<br>随手复制、圈出重点，或贴在桌面慢慢看。</p>
         <div class="hero-actions"><a class="button primary" href="#download">获取 Windows 版 <span aria-hidden="true">↗</span></a><a class="text-link" href="#try">在线试用 <span aria-hidden="true">↓</span></a></div>
       </div>
     </section>
@@ -156,20 +156,12 @@
     <section class="showcase-section section-space" id="features" aria-labelledby="features-title">
       <div class="container">
         <div class="section-heading reveal"><h2 id="features-title">截下来。挂起来。<br><span class="muted-heading">下一秒，就用得上。</span></h2><p>不用在文件夹里来回找，也不用打断正在做的事。</p></div>
-        <article class="ocr-feature reveal" id="ocr" aria-labelledby="ocr-title">
-          <div class="ocr-copy">
-            <h3 id="ocr-title">直接复制截图中的文字</h3>
-            <p>在截图或图片预览中点击<strong>「提取文字」</strong>，在原图上拖选要复制的中英文，再按 <kbd>Ctrl+C</kbd>。</p>
-            <p>文字识别全程在本机离线完成。</p>
-            <a class="text-link" href="#download">获取文字识别版 <span aria-hidden="true">↓</span></a>
-          </div>
-          <button class="screenshot-button ocr-image" type="button" data-image="images/07-text-recognition.png" data-title="在原图上选中文字" aria-label="放大查看文字识别界面"><img src="images/07-text-recognition.png" alt="Snapline 截图界面，原图上的英文 Review 和中文项目编号已选中，底部工具栏显示复制文字图标" width="1050" height="640" loading="lazy"></button>
-        </article>
         <div class="showcase reveal">
           <div class="demo-tabs" role="tablist" aria-label="查看软件功能">
             <button id="tab-shelf" type="button" role="tab" aria-selected="true" aria-controls="panel-shelf" tabindex="0">晾衣绳收纳</button>
             <button id="tab-preview" type="button" role="tab" aria-selected="false" aria-controls="panel-preview" tabindex="-1">预览与标注</button>
             <button id="tab-capture" type="button" role="tab" aria-selected="false" aria-controls="panel-capture" tabindex="-1">截图与取色</button>
+            <button id="tab-ocr" type="button" role="tab" aria-selected="false" aria-controls="ocr" tabindex="-1">文字识别</button>
             <button id="tab-pin" type="button" role="tab" aria-selected="false" aria-controls="panel-pin" tabindex="-1">桌面贴图</button>
           </div>
           <div id="panel-shelf" class="demo-panel shelf-panel" role="tabpanel" aria-labelledby="tab-shelf" tabindex="0">
@@ -183,6 +175,14 @@
           <div id="panel-capture" class="demo-panel" role="tabpanel" aria-labelledby="tab-capture" tabindex="0" hidden>
             <div class="demo-copy"><h3>一键截图，顺手圈出你想说的。</h3><p>F1 开始截图，自由框选或选择识别到的控件。选好区域后打开取色器，复制 HEX / RGB 颜色。</p></div>
             <a class="capture-stage" href="#try" data-try-capture><img class="capture-example" src="images/05-capture-annotation.png" alt="" width="301" height="201" loading="lazy"><img class="capture-toolbar" src="images/04-capture-toolbar.png" alt="" width="645" height="42" loading="lazy"><span class="button primary">试用截图工具 <span aria-hidden="true">↑</span></span></a>
+          </div>
+          <div id="ocr" class="demo-panel" role="tabpanel" aria-labelledby="tab-ocr" tabindex="0" hidden>
+            <div class="demo-copy">
+              <h3>直接复制截图中的文字</h3>
+              <p>在截图或图片预览中点击「提取文字」，在原图上拖选中英文，再按 <kbd>Ctrl+C</kbd> 复制。</p>
+              <p>文字识别版使用本地模型，离线完成识别。Snapline 不采集用户个人信息，不上传或回传截图和识别结果。</p>
+            </div>
+            <button class="screenshot-button preview-stage" type="button" data-image="images/07-text-recognition.png" data-title="在原图上选中文字" aria-label="放大查看文字识别界面"><img src="images/07-text-recognition.png" alt="Snapline 截图界面，原图上的英文 Review 和中文项目编号已选中，底部工具栏显示复制文字图标" width="1050" height="640" loading="lazy"></button>
           </div>
           <div id="panel-pin" class="demo-panel" role="tabpanel" aria-labelledby="tab-pin" tabindex="0" hidden>
             <div class="demo-copy"><h3>把参考留在眼前，思路就不用来回切。</h3><p>F3 将剪贴板图片、文字或颜色贴到屏幕。拖动移动，滚轮缩放，Ctrl+滚轮调节透明度。</p></div>
@@ -215,6 +215,7 @@
       <div class="questions-heading reveal"><h2 id="questions-title">你可能还想知道。</h2><p>开始之前，把几个小问题说清楚。</p></div>
       <div class="questions-list reveal">
         <details><summary>支持哪些系统？需要安装什么？</summary><div><p>支持 Windows 10 / 11 x64，需要 .NET Framework 4.8 或更高版本。提供安装包和免安装版；安装包无需管理员权限，免安装版解压后运行 Snapline.exe 即可。</p></div></details>
+        <details id="privacy"><summary>Snapline 会采集或上传用户信息吗？</summary><div><p>Snapline 客户端不采集用户个人信息或使用统计。截图、剪贴板内容和识别结果均在本机处理，不会上传或回传。手动检查更新时，软件只向 GitHub 查询公开版本，并在你确认后获取更新。</p></div></details>
         <details><summary>图片保存在什么地方？会自动删除吗？</summary><div><p>图片副本与设置保存在 <code>%LOCALAPPDATA%\Snapline</code>，也可从托盘打开收集文件夹。晾衣绳显示最近 60 张，较旧副本仍留在 inbox 文件夹中，不会自动清理。</p></div></details>
         <details><summary>会读取剪贴板里的文字和历史记录吗？</summary><div><p>自动收集只读取之后发生变化的图片，不读取文字或剪贴板历史。仅当你主动使用“贴到屏幕”时，才会读取当前剪贴板中的图片、文字或颜色。</p></div></details>
         <details><summary>退出以后，桌面贴图还在吗？</summary><div><p>贴图只在当前运行期间保留，退出后不会恢复。需要长期保留，请在贴图中按 Ctrl+S 另存 PNG。晾衣绳里已保存的图片副本会留在本机。</p></div></details>

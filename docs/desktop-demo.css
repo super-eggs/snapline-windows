@@ -453,7 +453,7 @@
   .hero-details { padding-bottom: 0; }
   .download-copy:lang(en) > img { position: static; margin-bottom: 14px; }
   .showcase { display: block; }
-  .demo-tabs { grid-template-columns: repeat(4, 1fr); border-right: 0; }
+  .demo-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); border-right: 0; }
   .demo-tabs button { padding-inline: 4px; text-align: center; }
 }
 @media (max-width: 540px) {

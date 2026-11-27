@@ -41,7 +41,7 @@
         <h1 id="hero-title">Your screenshots,<br><span>always at hand.</span></h1>
       </div>
       <div class="hero-details">
-        <p class="hero-description">Keep your latest screenshots on a line at the top of your screen. Copy and annotate them, pin them to your desktop, or <a href="#ocr">extract text</a>.</p>
+        <p class="hero-description">Keep your latest screenshots on a line at the top of your screen. Copy them in a click, mark up the details, or pin them right where you need them.</p>
         <div class="hero-actions"><a class="button primary" href="#download">Download <span aria-hidden="true">↗</span></a><a class="text-link" href="#try">Try the demo <span aria-hidden="true">↓</span></a></div>
       </div>
     </section>
@@ -156,20 +156,12 @@
     <section class="showcase-section section-space" id="features" aria-labelledby="features-title">
       <div class="container">
         <div class="section-heading reveal"><h2 id="features-title">Capture it. Hang it up.<br><span class="muted-heading">Use it when you need it.</span></h2><p>Find the screenshot you just took and get right back to work.</p></div>
-        <article class="ocr-feature reveal" id="ocr" aria-labelledby="ocr-title">
-          <div class="ocr-copy">
-            <h3 id="ocr-title">Copy text directly from a screenshot</h3>
-            <p>In a capture or image preview, click <strong>Extract text</strong> (<span lang="zh-CN">提取文字</span>). Drag over the Chinese or English text on the image, then press <kbd>Ctrl+C</kbd>.</p>
-            <p>Text recognition runs offline on your PC.</p>
-            <a class="text-link" href="#download">Get the OCR edition <span aria-hidden="true">↓</span></a>
-          </div>
-          <button class="screenshot-button ocr-image" type="button" data-image="../images/07-text-recognition.png" data-title="Text selected on the original screenshot" aria-label="Enlarge the text recognition screenshot"><img src="../images/07-text-recognition.png" alt="The Snapline capture window highlights Review and the Chinese words for project ID directly on the screenshot" width="1050" height="640" loading="lazy"></button>
-        </article>
         <div class="showcase reveal">
           <div class="demo-tabs" role="tablist" aria-label="Explore Snapline features">
             <button id="tab-shelf" type="button" role="tab" aria-selected="true" aria-controls="panel-shelf" tabindex="0">Shelf</button>
             <button id="tab-preview" type="button" role="tab" aria-selected="false" aria-controls="panel-preview" tabindex="-1">Preview</button>
             <button id="tab-capture" type="button" role="tab" aria-selected="false" aria-controls="panel-capture" tabindex="-1">Capture</button>
+            <button id="tab-ocr" type="button" role="tab" aria-selected="false" aria-controls="ocr" tabindex="-1">OCR</button>
             <button id="tab-pin" type="button" role="tab" aria-selected="false" aria-controls="panel-pin" tabindex="-1">Pin</button>
           </div>
           <div id="panel-shelf" class="demo-panel shelf-panel" role="tabpanel" aria-labelledby="tab-shelf" tabindex="0">
@@ -183,6 +175,14 @@
           <div id="panel-capture" class="demo-panel" role="tabpanel" aria-labelledby="tab-capture" tabindex="0" hidden>
             <div class="demo-copy"><h3>Capture a detail and point it out.</h3><p>Press F1, drag to select an area, or choose a detected control. Open the color picker to copy HEX or RGB values from the selection.</p></div>
             <a class="capture-stage" href="#try" data-try-capture><img class="capture-example" src="../images/en-capture-annotation.png" alt="" width="301" height="201" loading="lazy"><img class="capture-toolbar" src="../images/04-capture-toolbar.png" alt="" width="645" height="42" loading="lazy"><span class="button primary">Try the capture tools <span aria-hidden="true">↑</span></span></a>
+          </div>
+          <div id="ocr" class="demo-panel" role="tabpanel" aria-labelledby="tab-ocr" tabindex="0" hidden>
+            <div class="demo-copy">
+              <h3>Copy text directly from a screenshot</h3>
+              <p>In a capture or image preview, click Extract text (<span lang="zh-CN">提取文字</span>). Drag over the Chinese or English text on the image and press <kbd>Ctrl+C</kbd> to copy it.</p>
+              <p>The OCR edition uses a local model and works offline. Snapline does not collect personal information or send screenshots or recognized text off your device.</p>
+            </div>
+            <button class="screenshot-button preview-stage" type="button" data-image="../images/07-text-recognition.png" data-title="Text selected on the original screenshot" aria-label="Enlarge the text recognition screenshot"><img src="../images/07-text-recognition.png" alt="The Snapline capture window highlights Review and the Chinese words for project ID directly on the screenshot" width="1050" height="640" loading="lazy"></button>
           </div>
           <div id="panel-pin" class="demo-panel" role="tabpanel" aria-labelledby="tab-pin" tabindex="0" hidden>
             <div class="demo-copy"><h3>Keep your reference in view.</h3><p>Press F3 to pin an image, text, or a color from the clipboard. Drag to move it, scroll to resize it, or hold Ctrl while scrolling to change opacity.</p></div>
@@ -215,6 +215,7 @@
       <div class="questions-heading reveal"><h2 id="questions-title">Frequently asked questions</h2><p>What to know before you get started.</p></div>
       <div class="questions-list reveal">
         <details><summary>What are the system requirements?</summary><div><p>Snapline runs on Windows 10 or 11 x64 with .NET Framework 4.8 or later. The installer requires no administrator rights. With the portable version, unzip the archive and run Snapline.exe.</p></div></details>
+        <details id="privacy"><summary>Does Snapline collect or upload personal information?</summary><div><p>The Snapline desktop app does not collect personal information or usage statistics. Screenshots, clipboard contents, and recognized text are processed on your PC and are never uploaded. If you manually check for updates, the app queries GitHub for public release information and gets the update after you confirm.</p></div></details>
         <details><summary>Where are my screenshots stored? Are they deleted automatically?</summary><div><p>Image copies and settings are stored in <code>%LOCALAPPDATA%\Snapline</code>. Open the collection folder from the system tray. The shelf shows the latest 60 items. Older copies stay in the inbox folder.</p></div></details>
         <details><summary>Does Snapline read clipboard text or history?</summary><div><p>Automatic collection reads newly copied images only. Snapline reads the current clipboard image, text, or color when you choose Pin to desktop.</p></div></details>
         <details><summary>What happens to pinned images when I quit?</summary><div><p>Pins last for the current session. Press Ctrl+S on a pin to save it as a PNG. Image copies saved to the shelf stay on your PC.</p></div></details>

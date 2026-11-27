@@ -47,7 +47,6 @@ kbd { font: inherit; }
 .hero h1 { font-size: clamp(48px, 5vw, 70px); line-height: 1.2; letter-spacing: -3.4px; white-space: nowrap; }
 .hero h1 span { color: var(--blue); }
 .hero-description { font-size: 17px; color: var(--muted); line-height: 1.9; margin-top: 27px; }
-.hero-description a { color: var(--blue); text-decoration: underline; text-underline-offset: 3px; }
 .hero-actions { display: flex; gap: 26px; align-items: center; margin-top: 34px; }
 .button { display: inline-flex; justify-content: center; align-items: center; gap: 28px; font-size: 14px; font-weight: 600; padding: 14px 21px; border-radius: 9px; transition: transform .2s, background .2s, box-shadow .2s; white-space: nowrap; }
 .button.primary { background: var(--blue); color: white; box-shadow: 0 5px 12px #275ddf14; }
@@ -63,15 +62,8 @@ kbd { font: inherit; }
 .section-heading { max-width: 700px; margin-bottom: 42px; }
 .muted-heading { color: #8794aa; }
 .section-heading p, .questions-heading p { color: var(--muted); font-size: 15px; margin-top: 18px; }
-.ocr-feature { display: grid; grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr); align-items: center; gap: clamp(24px, 4vw, 58px); padding: clamp(20px, 3.8vw, 48px); margin-bottom: 32px; border: 1px solid var(--line); border-radius: 24px; background: #f3f6fb; }
-.ocr-copy h3 { font-size: clamp(25px, 3vw, 38px); line-height: 1.28; letter-spacing: -.8px; }
-.ocr-copy p { color: var(--muted); font-size: 14px; margin-top: 13px; }
-.ocr-copy strong, .ocr-copy kbd { color: var(--ink); font-weight: 650; }
-.ocr-copy kbd { white-space: nowrap; }
-.ocr-copy .text-link { margin-top: 10px; min-height: 44px; color: var(--blue); }
-.ocr-copy .text-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .showcase { border: 1px solid #e2e8f0; border-radius: 24px; overflow: hidden; background: #f3f6fb; }
-.demo-tabs { display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px; gap: 5px; background: #eaf0f8; }
+.demo-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 8px; gap: 5px; background: #eaf0f8; }
 .demo-tabs button { background: transparent; color: #68788f; border: 0; padding: 13px 8px; font-size: 13px; font-weight: 600; border-radius: 10px; transition: background .2s, color .2s, box-shadow .2s; }
 .demo-tabs button[aria-selected="true"] { background: white; color: var(--blue); box-shadow: 0 2px 9px #34527a0c; }
 .demo-tabs button:hover { color: var(--blue); background: #ffffff80; }
@@ -81,10 +73,9 @@ kbd { font: inherit; }
 .demo-copy p { font-size: 13px; color: var(--muted); margin-top: 9px; line-height: 1.9; }
 .shelf-stage { overflow: hidden; min-height: 250px; display: flex; align-items: center; background: linear-gradient(130deg, #e6edf5, #f4f1e7); }
 .shelf-stage img { width: 100%; min-width: 850px; max-width: none; margin-inline: auto; }
-.preview-stage, .ocr-image { display: block; padding: 0; border: 0; border-radius: 9px; background: #222; overflow: hidden; box-shadow: 0 16px 35px -14px #19305055; cursor: zoom-in; }
-.preview-stage { margin: auto; width: 620px; max-width: calc(100% - 64px); }
+.preview-stage { display: block; margin: auto; width: 620px; max-width: calc(100% - 64px); padding: 0; border: 0; border-radius: 9px; background: #222; overflow: hidden; box-shadow: 0 16px 35px -14px #19305055; cursor: zoom-in; }
 .demo-panel:has(.preview-stage) { padding-bottom: 38px; }
-.preview-stage img, .ocr-image, .ocr-image img { width: 100%; }
+.preview-stage img { width: 100%; }
 .capture-stage { display: flex; align-items: center; flex-direction: column; gap: 22px; padding: 0 24px 16px; }
 .capture-example { border: 1px solid #b5c7df; box-shadow: 0 10px 25px #304e7614; }
 .capture-toolbar { width: 645px; border-radius: 7px; box-shadow: 0 8px 20px #304e761c; }
@@ -213,7 +204,6 @@ dialog > img { max-width: 100%; max-height: calc(92dvh - 60px); object-fit: cont
   .hero-actions .text-link { font-size: 13px; gap: 14px; }
   .essentials { flex-wrap: wrap; justify-content: flex-start; column-gap: 30px; row-gap: 12px; font-size: 11px; }
   .essentials > a { margin-left: auto; }
-  .ocr-feature { grid-template-columns: minmax(0, 1fr); }
   .workflow-section { grid-template-columns: 1fr; gap: 32px; }
   .workflow-intro > p br, .workflow-intro h2 br { display: none; }
   .workflow-intro > p { margin-block: 18px; }
@@ -267,10 +257,9 @@ dialog > img { max-width: 100%; max-height: calc(92dvh - 60px); object-fit: cont
   .section-heading { margin-bottom: 28px; }
   h2 { font-size: 31px; letter-spacing: -1.25px; }
   .section-heading p { font-size: 12px; margin-top: 17px; }
-  .ocr-feature { margin-bottom: 24px; border-radius: 16px; }
   .showcase { border-radius: 16px; }
   .demo-tabs { padding: 5px; gap: 2px; }
-  .demo-tabs button { font-size: 10px; padding: 12px 2px; border-radius: 7px; white-space: nowrap; }
+  .demo-tabs button { font-size: 10px; padding: 12px 2px; border-radius: 7px; }
   .demo-panel { min-height: 360px; padding-top: 27px; }
   .demo-copy { padding-inline: 20px; margin-bottom: 23px; }
   .demo-copy h3 { font-size: 18px; letter-spacing: -.8px; }

@@ -32,6 +32,14 @@
       tabs[next].focus();
     });
   });
+  function showLinkedPanel() {
+    const index = panels.findIndex(panel => `#${panel.id}` === location.hash);
+    if (index < 0) return;
+    selectTab(index);
+    panels[index].scrollIntoView();
+  }
+  showLinkedPanel();
+  window.addEventListener('hashchange', showLinkedPanel);
   const dialog = document.getElementById('image-dialog');
   const dialogImage = document.getElementById('dialog-image');
   document.querySelectorAll('[data-image]').forEach(button => {
