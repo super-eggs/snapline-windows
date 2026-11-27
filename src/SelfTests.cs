@@ -450,12 +450,14 @@ namespace Snapline
                 try
                 {
                     var editorContent = (FrameworkElement)editor.Content;
+                    Check(Descendants<Button>(editorContent).Any(button => Equals(button.Tag, "ocr")) == Recognition.Included,
+                        "the preview toolbar shows text extraction only in the OCR edition");
                     // Content has a 20px outer margin, as in the actual Window layout.
                     VerifyLayout(editorContent, 420, 600, "narrow annotation editor");
                     SaveLayout(editorContent, 420, 600, 1, Path.Combine(artifacts, "editor-narrow.png"));
                     VerifyLayout(editorContent, 1100, 760, "wide preview viewport"); editor.FitImage(); editorContent.UpdateLayout();
                     Check(Descendants<Button>(editorContent).Where(button => !Equals(button.Tag, "")).All(button => button.Content is System.Windows.Shapes.Path), "preview actions use vector icons instead of text labels");
-                    foreach (var button in Descendants<Button>(editorContent))
+                    foreach (var button in Descendants<Button>(editorContent).Where(button => button.Visibility == Visibility.Visible))
                     {
                         var icon = button.Content as System.Windows.Shapes.Path;
                         if (icon == null) continue;

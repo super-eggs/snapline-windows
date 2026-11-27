@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -139,6 +140,7 @@ namespace Snapline
             }
             finally { capture.Close(); }
             VerifyCompactToolbar(original, artifacts, check);
+            VerifyImageText(check);
             var settings = new Store(Path.Combine(root, "capture-settings"), false);
             settings.Settings.CaptureHotkey = "Ctrl+Alt+A"; settings.SaveSettings();
             check(new Store(settings.Root, false).Settings.CaptureHotkey == "Ctrl+Alt+A", "custom capture shortcut persists independently of collection settings");
@@ -229,6 +231,60 @@ namespace Snapline
             check(pasteable.Result && publishes == 1 && flushes == 3,
                 "capture is reported as pasteable after publishing even if clipboard persistence remains busy");
         }
+        private static void VerifyImageText(Action<bool, string> check)
+        {
+            Func<double, double, double, double, double[][]> box = (left, top, right, bottom) => new[] {
+                new[] { left, top }, new[] { right, top }, new[] { right, bottom }, new[] { left, bottom }
+            };
+            var overlay = new ImageText(200, 100);
+            overlay.SetLines(new[]
+            {
+                new RecognitionLine { Text = "截图 细节", Box = box(10, 10, 170, 30), Glyphs = new[]
+                {
+                    new RecognitionGlyph { Text = "截", Box = box(15, 10, 35, 30) },
+                    new RecognitionGlyph { Text = "图", Box = box(40, 10, 66, 30) },
+                    new RecognitionGlyph { Text = "细", Box = box(100, 10, 123, 30) },
+                    new RecognitionGlyph { Text = "节", Box = box(125, 10, 150, 30) }
+                } },
+                new RecognitionLine { Text = "ABC 012", Box = box(10, 45, 157, 65) }
+            });
+            bool started = overlay.BeginSelection(new Point(38, 20));
+            overlay.ExtendSelection(new Point(124, 20));
+            check(started && overlay.SelectedText() == "图 细", "OCR selects only the glyphs dragged across on the screenshot, including spaces");
+            string copied = null;
+            CollectionTests.Wait(overlay.CopySelectionAsync(value => copied = value));
+            check(copied == "图 细", "the OCR copy action publishes the dragged text rather than the complete recognition result");
+            overlay.BeginSelection(new Point(73, 55));
+            overlay.ExtendSelection(new Point(38, 20));
+            check(overlay.SelectedText() == "图 细节" + Environment.NewLine + "ABC", "OCR reverse selection across lines retains their reading order");
+            overlay.BeginSelection(new Point(10, 55));
+            overlay.ExtendSelection(new Point(190, 55));
+            check(overlay.SelectedText() == "ABC 012", "dragging past a short OCR line clips to its end rather than the longer line above");
+            overlay.SelectAll();
+            check(overlay.SelectedText() == "截图 细节" + Environment.NewLine + "ABC 012", "OCR select all includes every recognized line");
+            check(!overlay.BeginSelection(new Point(171, 100)) && overlay.SelectedText() == "", "clicking a blank part of the screenshot clears its OCR selection");
+        }
+
+        internal static async Task VerifyBundledOcr()
+        {
+            var engine = Recognition.Find();
+            if (engine == null) throw new InvalidOperationException("文字识别版缺少内置组件。");
+            var visual = new DrawingVisual();
+            using (var drawing = visual.RenderOpen())
+            {
+                drawing.DrawRectangle(Brushes.White, null, new Rect(0, 0, 620, 240));
+                var text = new FormattedText("Snapline Capture", CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                    new Typeface("Arial"), 46, Brushes.Black, 1.0);
+                drawing.DrawText(text, new Point(32, 40));
+            }
+            var image = new RenderTargetBitmap(620, 240, 96, 96, PixelFormats.Pbgra32);
+            image.Render(visual);
+            image.Freeze();
+            var lines = await engine.ReadAsync(image, System.Threading.CancellationToken.None);
+            if (!lines.Any(line => string.Equals(line.Text.Replace(" ", ""), "SnaplineCapture", StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("内置组件识别测试图片的结果为 [" + string.Join(" | ", lines.Select(line => line.Text)) + "]。");
+        }
+
         private static void VerifyCompactToolbar(BitmapSource original, string artifacts, Action<bool, string> check)
         {
             foreach (int width in new[] { 1280, 320 })
@@ -242,8 +298,9 @@ namespace Snapline
                     var surface = (Canvas)capture.Content;
                     surface.Measure(new Size(width, 800)); surface.Arrange(new Rect(0, 0, width, 800)); surface.UpdateLayout();
                     var toolbar = surface.Children.OfType<Border>().Single(border => border.Child is WrapPanel);
-                    var buttons = Descendants<Button>(toolbar).ToArray();
+                    var buttons = Descendants<Button>(toolbar).Where(button => button.Visibility == Visibility.Visible).ToArray();
                     string[] expected = { "hand", "pen", "rectangle", "ellipse", "line", "arrow", "text", "mosaic", "eraser", "undo", "redo", "color", "width", "picker", "reselect", "save", "pin", "close", "check" };
+                    if (Recognition.Included) expected = expected.Concat(new[] { "ocr" }).ToArray();
                     check(buttons.Length == expected.Length && expected.All(tag => buttons.Count(button => Equals(button.Tag, tag)) == 1)
                         && buttons.All(button => button.Content is System.Windows.Shapes.Path && !string.IsNullOrWhiteSpace(System.Windows.Automation.AutomationProperties.GetName(button))),
                         "compact capture toolbar retains every action as an accessible vector button at " + width);
@@ -252,7 +309,7 @@ namespace Snapline
                         Rect bounds = button.TransformToAncestor(toolbar).TransformBounds(new Rect(button.RenderSize));
                         return bounds.Left >= 0 && bounds.Top >= 0 && bounds.Right <= toolbar.ActualWidth + .1 && bounds.Bottom <= toolbar.ActualHeight + .1 && bounds.Width >= 31 && bounds.Height >= 31;
                     }), "compact capture buttons stay inside the toolbar with 32px hit areas at " + width);
-                    if (width == 1280) check(toolbar.ActualHeight <= 44 && toolbar.ActualWidth <= 660, "desktop capture toolbar fits every action into one compact row");
+                    if (width == 1280) check(toolbar.ActualHeight <= 44 && toolbar.ActualWidth <= 680, "desktop capture toolbar fits every action into one compact row");
                     var render = new RenderTargetBitmap(width, 800, 96, 96, PixelFormats.Pbgra32); render.Render(surface);
                     var crop = new CroppedBitmap(render, new Int32Rect((int)Canvas.GetLeft(toolbar), (int)Canvas.GetTop(toolbar), (int)Math.Ceiling(toolbar.ActualWidth), (int)Math.Ceiling(toolbar.ActualHeight)));
                     File.WriteAllBytes(Path.Combine(artifacts, "capture-toolbar-" + width + ".png"), Store.Encode(crop));

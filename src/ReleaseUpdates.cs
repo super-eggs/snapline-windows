@@ -21,7 +21,6 @@ namespace Snapline
         private const string LatestRelease = "https://api.github.com/repos/" + Repository + "/releases/latest";
         private const string ChecksumsFile = "SHA256SUMS.txt";
         private const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\{BBFEDE84-A60E-4F11-9CC5-1EE29BA57425}_is1";
-        private const int MaxInstallerBytes = 100 * 1024 * 1024;
 
         [DataContract]
         internal sealed class Release
@@ -32,9 +31,9 @@ namespace Snapline
             [DataMember(Name = "body")] internal string Body { get; set; }
             [DataMember(Name = "assets")] internal Asset[] Assets { get; set; }
 
-            internal Asset Package(bool installed)
+            internal Asset Package(bool installed, bool ocr)
             {
-                string name = PackageName(Tag, installed);
+                string name = PackageName(Tag, installed, ocr);
                 string expectedUrl = AssetUrl(Tag, name);
                 return Assets == null ? null : Assets.FirstOrDefault(asset => asset != null && asset.Name == name
                     && asset.State == "uploaded" && asset.Url == expectedUrl);
@@ -61,10 +60,11 @@ namespace Snapline
             internal bool FromChecksumManifest { get; set; }
         }
 
-        private static string PackageName(string tag, bool installed)
+        private static string PackageName(string tag, bool installed, bool ocr)
         {
+            string prefix = ocr ? "Snapline-OCR-" : "Snapline-";
             string version = tag.Substring(1);
-            return installed ? "Snapline-Setup-" + version + "-x64.exe" : "Snapline-Portable-" + version + "-x64.zip";
+            return installed ? prefix + "Setup-" + version + "-x64.exe" : prefix + "Portable-" + version + "-x64.zip";
         }
 
         private static string AssetUrl(string tag, string name)
@@ -145,15 +145,20 @@ namespace Snapline
                         manifest = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                     }
                 }
-                release.Assets = new[] { ManifestPackage(release.Tag, manifest, true), ManifestPackage(release.Tag, manifest, false) };
+                release.Assets = new[]
+                {
+                    ManifestPackage(release.Tag, manifest, true, false), ManifestPackage(release.Tag, manifest, false, false),
+                    ManifestPackage(release.Tag, manifest, true, true), ManifestPackage(release.Tag, manifest, false, true)
+                };
                 return release;
             }
         }
 
-        private static Asset ManifestPackage(string tag, string manifest, bool installed)
+        private static Asset ManifestPackage(string tag, string manifest, bool installed, bool ocr)
         {
-            string name = PackageName(tag, installed);
+            string name = PackageName(tag, installed, ocr);
             var matches = Regex.Matches(manifest, @"(?m)^([0-9a-fA-F]{64})  " + Regex.Escape(name) + @"\r?$");
+            if (ocr && matches.Count == 0) return null;
             if (matches.Count != 1) throw new InvalidDataException("GitHub 发布的 SHA-256 校验文件不完整或存在冲突。");
             return new Asset
             {
@@ -173,21 +178,22 @@ namespace Snapline
             return version > new Version(current.Major, current.Minor, current.Build) ? release : null;
         }
 
-        internal static async Task<VerifiedInstaller> DownloadAsync(Asset asset)
+        internal static async Task<VerifiedInstaller> DownloadAsync(Asset asset, bool ocr)
         {
+            int maxInstallerBytes = (ocr ? 256 : 100) * 1024 * 1024;
             if (asset.Digest == null || !Regex.IsMatch(asset.Digest, @"\Asha256:[0-9a-fA-F]{64}\z"))
                 throw new InvalidDataException("这个安装包缺少有效的 SHA-256 校验值，请稍后重试。");
-            if (!asset.FromChecksumManifest && (asset.Size <= 0 || asset.Size > MaxInstallerBytes))
+            if (!asset.FromChecksumManifest && (asset.Size <= 0 || asset.Size > maxInstallerBytes))
                 throw new InvalidDataException("安装包大小异常，请稍后重试。");
 
             using (var client = CreateClient())
-            using (var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(3)))
+            using (var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(ocr ? 10 : 3)))
             using (var response = await GetAssetAsync(client, new Uri(asset.Url), timeout.Token).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
                 // The published checksum file has hashes only. Use the official download's byte length.
                 long size = asset.FromChecksumManifest ? response.Content.Headers.ContentLength.GetValueOrDefault() : asset.Size;
-                if (size <= 0 || size > MaxInstallerBytes)
+                if (size <= 0 || size > maxInstallerBytes)
                     throw new InvalidDataException("安装包大小异常，请稍后重试。");
                 string directory = Path.Combine(Path.GetTempPath(), "Snapline");
                 Directory.CreateDirectory(directory);

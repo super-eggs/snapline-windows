@@ -159,7 +159,7 @@ namespace Snapline
                 Native.SetWindowPos(smokeHandle, new IntPtr(-1), bounds.Left, y, 0, 0, 0x0011);
                 // Wait past the auto-hide interval with the real window timer running.
                 var smokeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3200) };
-                smokeTimer.Tick += delegate
+                smokeTimer.Tick += async delegate
                 {
                     smokeTimer.Stop();
                     int result = 0;
@@ -170,7 +170,7 @@ namespace Snapline
                         if (!shelf.IsVisible) throw new InvalidOperationException("手动展开的窗口在 3.2 秒内自动隐藏");
                         if (store.Items.Count != expectedCaptures || !tray.Visible) throw new InvalidOperationException("启动状态不完整");
                         string fileVersion = System.Diagnostics.FileVersionInfo.GetVersionInfo(Forms.Application.ExecutablePath).FileVersion;
-                        string expectedVersionLabel = "当前运行版本 v" + new Version(fileVersion).ToString(3);
+                        string expectedVersionLabel = RunningVersionLabel(new Version(fileVersion));
                         bool versionShown = false, startupSettingDisabled = false, updateDisabled = false;
                         Forms.ToolStripMenuItem shelfHoverSetting = null;
                         if (tray.ContextMenuStrip.Items.Count != 0) throw new InvalidOperationException("托盘菜单应在首次打开时加载");
@@ -241,6 +241,7 @@ namespace Snapline
                         if (!preview.Topmost) throw new InvalidOperationException("预览窗口未同步置顶配置");
                         preview.Close();
                         CaptureTests.VerifyDesktopPixels();
+                        if (Recognition.Included) await CaptureTests.VerifyBundledOcr();
                         var content = (FrameworkElement)shelf.Content; content.UpdateLayout();
                         // Export an independent layout so compositor caches cannot omit
                         // transparent-window visuals in RenderTargetBitmap.
@@ -255,6 +256,7 @@ namespace Snapline
                         File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(smokeReport), "running-shelf.png"), Store.Encode(render));
                         report = "PASS tray menu displays " + expectedVersionLabel + "\n"
                             + "PASS startup setting is visible, disabled and unchecked in demo mode\nPASS native desktop capture reads the exact opaque RGB pixels and physical size of an isolated synthetic window patch\nPASS persisted top/normal/bottom layers update native topmost style and bottom remains below an independent normal window after reveal; preview follows live changes\nPASS real preview window opens, fits, zooms and renders a quarter-turn image at original resolution\nPASS native horizontal-wheel message starts smooth movement and real DispatcherTimer animation settles on target\nPASS manual reveal remains visible after 3.2 seconds with real auto-hide timer enabled and initial pointer outside\nPASS native window matches current monitor left edge and complete physical width\nPASS application startup, tray initialization, demo captures, window hide/reveal, annotation window startup, independent WPF layout export\nPASS real clipboard and screenshot directory monitoring disabled in smoke test\n";
+                        if (Recognition.Included) report += "PASS bundled OCR reads text from a synthetic image offline\n";
                     }
                     catch (Exception ex) { result = 1; report = "FAIL " + ex; }
                     Directory.CreateDirectory(Path.GetDirectoryName(smokeReport)); File.WriteAllText(smokeReport, hoverReport + report);
@@ -552,9 +554,13 @@ namespace Snapline
             tray.Visible = true;
             if (!demo && !startup) { tray.BalloonTipTitle = "截图晾衣绳已就绪"; tray.BalloonTipText = store.Settings.CaptureHotkey + " 截图取色；" + store.Settings.PinHotkey + " 贴图；Ctrl+Alt+T 展开晾衣绳。"; tray.ShowBalloonTip(4000); }
         }
+        private static string RunningVersionLabel(Version version)
+        {
+            return "当前运行版本 v" + version.ToString(3) + (Recognition.Included ? " · 文字识别版" : " · 纯截图版");
+        }
         private void PopulateTrayMenu(Forms.ContextMenuStrip menu)
         {
-            menu.Items.Add(new Forms.ToolStripLabel("当前运行版本 v" + typeof(App).Assembly.GetName().Version.ToString(3)));
+            menu.Items.Add(new Forms.ToolStripLabel(RunningVersionLabel(typeof(App).Assembly.GetName().Version)));
             var checkUpdates = menu.Items.Add("检查更新…");
             checkUpdates.Enabled = !demo;
             checkUpdates.Click += async delegate { await CheckForUpdatesAsync(checkUpdates); };
@@ -732,7 +738,7 @@ namespace Snapline
                 }
 
                 string installDirectory = ReleaseUpdates.InstalledDirectory(assembly.Location);
-                var asset = release.Package(installDirectory != null);
+                var asset = release.Package(installDirectory != null, Recognition.Included);
                 if (asset == null)
                 {
                     MessageBox.Show("发现 " + release.Tag + "，适用于当前版本类型的下载文件暂未就绪，请稍后重试。", title);
@@ -753,7 +759,7 @@ namespace Snapline
                 }
 
                 item.Text = "正在下载并校验安装包…";
-                using (var package = await ReleaseUpdates.DownloadAsync(asset))
+                using (var package = await ReleaseUpdates.DownloadAsync(asset, Recognition.Included))
                 {
                     await ExitAsync(delegate
                     {

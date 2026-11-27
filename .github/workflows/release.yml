@@ -23,7 +23,16 @@ jobs:
       - name: Build and test
         shell: pwsh
         run: ./build.ps1 -Test
-      - name: Package installer and portable archive
+      - name: Build the OCR edition and its offline runtime
+        shell: pwsh
+        run: |
+          ./build.ps1 -Ocr
+          python -m pip install --disable-pip-version-check uv==0.11.26
+          if ($LASTEXITCODE -ne 0) { throw 'Could not install uv for recognition component builds.' }
+          $pythonScripts = python -c "import sysconfig; print(sysconfig.get_path('scripts'))"
+          $env:PATH = "$pythonScripts;$env:PATH"
+          ./build-recognition.ps1
+      - name: Package both editions
         shell: pwsh
         run: |
           $setup = Join-Path $env:RUNNER_TEMP 'innosetup.exe'
@@ -33,10 +42,12 @@ jobs:
           if ($hash -ne 'F3C42116542C4CC57263C5BA6C4FEABFC49FE771F2F98A79D2F7628B8762723B') { throw 'Inno Setup checksum mismatch.' }
           $process = Start-Process $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', ('/DIR="' + $tools + '"')) -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw 'Inno Setup installation failed.' }
-          ./package.ps1 -ISCC (Join-Path $tools 'ISCC.exe')
-      - name: Test installation and uninstallation
+          ./package.ps1 -ISCC (Join-Path $tools 'ISCC.exe') -OcrBuildDirectory 'artifacts/ocr-build'
+      - name: Test installation and uninstallation of both editions
         shell: pwsh
-        run: ./installer/test-install.ps1
+        run: |
+          ./installer/test-install.ps1
+          ./installer/test-install.ps1 -Ocr
       - name: Preserve validation reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -49,7 +60,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $version = $env:SNAPLINE_RELEASE_VERSION
-          $assets = @("artifacts/release/Snapline-Setup-$version-x64.exe", "artifacts/release/Snapline-Portable-$version-x64.zip", "artifacts/release/SHA256SUMS.txt")
+          $assets = @(
+            "artifacts/release/Snapline-Setup-$version-x64.exe",
+            "artifacts/release/Snapline-Portable-$version-x64.zip",
+            "artifacts/release/Snapline-OCR-Setup-$version-x64.exe",
+            "artifacts/release/Snapline-OCR-Portable-$version-x64.zip",
+            "artifacts/release/SHA256SUMS.txt"
+          )
           $tag = $env:GITHUB_REF_NAME
           $rehearsal = $tag.StartsWith('release-check/', [StringComparison]::Ordinal)
           $visibility = if ($rehearsal) { '--draft' } else { '--latest' }

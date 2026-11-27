@@ -108,6 +108,8 @@ namespace Snapline
                 case "line": geometry = "M3,17 L17,3"; break;
                 case "arrow": geometry = "M3,17 L17,3 M7,3 L17,3 L17,13"; break;
                 case "text": geometry = "M3,4 L17,4 M10,4 L10,18 M6,18 L14,18"; break;
+                case "ocr": geometry = "M2,6 L2,2 L6,2 M14,2 L18,2 L18,6 M18,14 L18,18 L14,18 M6,18 L2,18 L2,14 M5,6 L15,6 M10,6 L10,15"; break;
+                case "ocrCopy": geometry = "M7,6 L17,6 L17,18 L7,18 Z M13,6 L13,2 L3,2 L3,14 L7,14"; break;
                 case "mosaic": geometry = "M2,2 L18,2 L18,18 L2,18 Z M2,7 L18,7 M2,12 L18,12 M7,2 L7,18 M12,2 L12,18"; break;
                 case "fit": geometry = "M7,3 L3,3 L3,7 M13,3 L17,3 L17,7 M3,13 L3,17 L7,17 M13,17 L17,17 L17,13"; break;
                 case "minus": geometry = "M4,10 L16,10"; break;

@@ -15,8 +15,12 @@ namespace Snapline
         private readonly Store store;
         private Shot currentShot;
         private readonly InkCanvas canvas;
+        private readonly Grid stage;
         private readonly ScrollViewer viewer;
         private readonly TextBlock filename, info;
+        private readonly Button ocrButton, ocrCopyButton;
+        private ImageText imageText;
+        private string ocrNotice;
         private BitmapSource original;
         private readonly AnnotationTools annotations;
         private readonly Button zoomLabel;
@@ -62,10 +66,18 @@ namespace Snapline
                 TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(20, 0, 20, 0) };
             Grid.SetColumn(filename, 1); command.Children.Add(filename);
             var actions = new StackPanel { Orientation = Orientation.Horizontal }; Grid.SetColumn(actions, 2); command.Children.Add(actions);
+            if (Recognition.Included)
+            {
+                ocrButton = AddIcon(actions, "ocr", "提取文字（在原图拖选）", RecognizeImage);
+                ocrCopyButton = AddIcon(actions, "ocrCopy", "复制选中的文字（Ctrl+C）", delegate { if (imageText != null) imageText.CopySelection(); });
+                Ui.Select(ocrCopyButton, true);
+                ocrCopyButton.Visibility = Visibility.Collapsed;
+            }
             if (pinImage != null) AddIcon(actions, "pin", "将当前图片与标注贴到屏幕", delegate { pinImage(RenderEdited()); });
             var save = AddIcon(actions, "save", "保存旋转及标注到应用副本，原图保留", async delegate
             {
                 if (saving) return;
+                EndTextSelection();
                 saving = true; IsEnabled = false;
                 string previousInfo = info.Text;
                 info.Text = "正在保存…";
@@ -98,12 +110,13 @@ namespace Snapline
             store.LayerChanged += applyLayer; SourceInitialized += delegate { applyLayer(); Native.DarkTitleBar(this); };
             Activated += delegate { if (store.Settings.Layer == WindowLayer.Bottom) applyLayer(); };
             Closing += delegate(object sender, System.ComponentModel.CancelEventArgs e) { e.Cancel = saving; };
-            Closed += delegate { CancelPendingZoom(); store.LayerChanged -= applyLayer; };
+            Closed += delegate { EndTextSelection(); CancelPendingZoom(); store.LayerChanged -= applyLayer; };
             Topmost = store.Settings.Layer == WindowLayer.Top; ShowActivated = store.Settings.Layer != WindowLayer.Bottom;
             layerButton.ToolTip = "窗口层级：" + Native.LayerName(store.Settings.Layer);
             top.Children.Add(command);
             annotations = new AnnotationTools(canvas, original);
             var annotation = annotations.Toolbar;
+            annotation.AddHandler(Button.ClickEvent, new RoutedEventHandler(delegate { EndTextSelection(); }));
             annotation.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
             var annotationSurface = new Border { Child = annotation, Background = Ui.Raised, BorderBrush = Ui.Edge, BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(10), Padding = new Thickness(4), Margin = new Thickness(12, 0, 12, 10), Visibility = annotation.Visibility };
@@ -113,6 +126,7 @@ namespace Snapline
             };
             annotate.Click += delegate
             {
+                EndTextSelection();
                 annotation.Visibility = annotation.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
                 annotationSurface.Visibility = annotation.Visibility;
                 annotations.Select(annotation.Visibility == Visibility.Visible ? AnnotationTool.Pen : AnnotationTool.Hand); refresh();
@@ -151,7 +165,7 @@ namespace Snapline
                 filename.Visibility = layout.ActualWidth < 650 ? Visibility.Collapsed : Visibility.Visible;
                 zoomSlider.Visibility = layout.ActualWidth < 650 ? Visibility.Collapsed : Visibility.Visible;
             };
-            var stage = new Grid { Margin = new Thickness(24), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            stage = new Grid { Margin = new Thickness(24), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             stage.Children.Add(canvas);
             viewer = new ScrollViewer { Background = new RadialGradientBrush(Color.FromRgb(49, 50, 51), Color.FromRgb(37, 38, 40)), HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = stage, CanContentScroll = false, PanningMode = PanningMode.Both };
@@ -178,8 +192,13 @@ namespace Snapline
             PreviewKeyDown += delegate(object sender, KeyEventArgs e)
             {
                 if (annotations.IsTextEditing) return;
+                if (imageText != null)
+                {
+                    if (e.Key == Key.Escape) { EndTextSelection(); e.Handled = true; return; }
+                    if (imageText.HandleKey(e)) { e.Handled = true; return; }
+                }
                 if (e.Key == Key.Escape) Close();
-                if (annotations.HandleKey(e)) { e.Handled = true; return; }
+                if (imageText == null && annotations.HandleKey(e)) { e.Handled = true; return; }
                 ModifierKeys modifiers = Keyboard.Modifiers;
                 if (modifiers == ModifierKeys.None && e.Key == Key.Delete)
                 {
@@ -262,6 +281,7 @@ namespace Snapline
                     if (choice != MessageBoxResult.Yes || !store.Items.Contains(target)) return false;
                 }
 
+                EndTextSelection();
                 annotations.ResetImage(image);
                 currentShot = target;
                 original = image;
@@ -309,6 +329,7 @@ namespace Snapline
         }
         internal void Rotate(int degrees)
         {
+            EndTextSelection();
             CancelPendingZoom();
             rotation = (rotation + degrees + 360) % 360;
             if (fit) FitImage(); else { UpdateTransform(); viewer.ScrollToHorizontalOffset(0); viewer.ScrollToVerticalOffset(0); }
@@ -317,8 +338,9 @@ namespace Snapline
         {
             var transform = new TransformGroup(); transform.Children.Add(new RotateTransform(rotation)); transform.Children.Add(new ScaleTransform(zoom, zoom));
             canvas.LayoutTransform = transform;
+            if (imageText != null) imageText.LayoutTransform = new ScaleTransform(zoom, zoom);
             RenderOptions.SetBitmapScalingMode(canvas, zoom >= 1 ? BitmapScalingMode.NearestNeighbor : BitmapScalingMode.Linear);
-            if (info != null) info.Text = string.Format("PNG   ·   {0} × {1}{2}", original.PixelWidth, original.PixelHeight, rotation == 0 ? "" : "   ·   " + rotation + "°");
+            UpdateInfo();
             if (zoomLabel != null) zoomLabel.Content = string.Format("{0:0.#}%", zoom * 100);
             if (zoomSlider != null) { updatingZoom = true; zoomSlider.Value = Math.Log(Math.Max(.05, zoom)); updatingZoom = false; }
         }
@@ -327,6 +349,45 @@ namespace Snapline
             BitmapSource result = annotations.Render();
             if (rotation == 0) return result;
             var rotated = new TransformedBitmap(result, new RotateTransform(rotation)); rotated.Freeze(); return rotated;
+        }
+        private void UpdateInfo()
+        {
+            if (info == null) return;
+            string notice = imageText != null ? imageText.Status : ocrNotice;
+            info.Text = notice ?? string.Format("PNG   ·   {0} × {1}{2}", original.PixelWidth, original.PixelHeight, rotation == 0 ? "" : "   ·   " + rotation + "°");
+            info.ToolTip = notice ?? "保存只修改应用副本";
+        }
+        private async void RecognizeImage()
+        {
+            if (saving || panning || annotations.IsTextEditing) return;
+            if (imageText != null) { EndTextSelection(); return; }
+            var engine = Recognition.Find();
+            ocrNotice = engine == null ? Recognition.MissingComponent : null;
+            if (engine == null) { UpdateInfo(); return; }
+            BitmapSource image = RenderEdited();
+            var layer = new ImageText(image.PixelWidth, image.PixelHeight) { LayoutTransform = new ScaleTransform(zoom, zoom) };
+            imageText = layer;
+            layer.StatusChanged += UpdateInfo;
+            stage.Children.Add(layer);
+            Ui.Select(ocrButton, true);
+            ocrCopyButton.Visibility = Visibility.Visible;
+            UpdateInfo();
+            layer.Focus();
+            await layer.LoadAsync(engine, image);
+        }
+        private void EndTextSelection()
+        {
+            if (imageText == null && ocrNotice == null) return;
+            ocrNotice = null;
+            if (imageText != null)
+            {
+                imageText.Stop();
+                stage.Children.Remove(imageText);
+                imageText = null;
+                ocrCopyButton.Visibility = Visibility.Collapsed;
+                Ui.Select(ocrButton, false);
+            }
+            UpdateInfo();
         }
         internal static Button AddIcon(Panel toolbar, string icon, string tip, Action action)
         {

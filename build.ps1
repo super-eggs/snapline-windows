@@ -1,12 +1,14 @@
-param([switch]$Test, [string]$OutputDirectory = 'dist')
+param([switch]$Test, [string]$OutputDirectory, [switch]$Ocr)
 $ErrorActionPreference = 'Stop'
 $framework = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
 $compiler = Join-Path $framework 'csc.exe'
 if (!(Test-Path -LiteralPath $compiler)) { throw '需要 Windows .NET Framework 4.8 编译器。' }
+if (!$OutputDirectory) { $OutputDirectory = if ($Ocr) { 'artifacts/ocr-build' } else { 'dist' } }
 $destination = if ([IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory } else { Join-Path $PSScriptRoot $OutputDirectory }
 New-Item -ItemType Directory -Force -Path $destination | Out-Null
 $references = @('System.dll','System.Core.dll','System.Drawing.dll','System.Net.Http.dll','System.Windows.Forms.dll','Accessibility.dll','System.Runtime.Serialization.dll','System.Xaml.dll','WPF\WindowsBase.dll','WPF\PresentationCore.dll','WPF\PresentationFramework.dll')
 $arguments = @('/nologo','/target:winexe','/platform:x64','/optimize+','/warn:4',('/out:' + (Join-Path $destination 'Snapline.exe')),('/win32manifest:' + (Join-Path $PSScriptRoot 'src\app.manifest')))
+if ($Ocr) { $arguments += '/define:SNAPLINE_OCR' }
 $arguments += '/win32icon:' + (Join-Path $PSScriptRoot 'assets\snapline.ico')
 $arguments += '/resource:' + (Join-Path $PSScriptRoot 'assets\snapline.ico') + ',Snapline.AppIcon.ico'
 foreach ($reference in $references) { $arguments += '/reference:' + (Join-Path $framework $reference) }

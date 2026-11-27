@@ -146,6 +146,7 @@ kbd { font: inherit; }
 .download-copy h2 { font-size: 41px; letter-spacing: -1.5px; }
 .download-copy > p { color: #d6e3ff; font-size: 12px; margin-top: 18px; }
 .download-options { display: flex; flex-direction: column; align-items: flex-start; }
+.download-choices { display: grid; gap: 8px; }
 .light-button { background: #fff; color: #2453c3; min-width: 238px; justify-content: space-between; }
 .light-button:hover { background: #e7efff; transform: translateY(-2px); }
 .portable-link { font-size: 13px; margin-top: 15px; color: #edf2ff; }

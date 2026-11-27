@@ -4,7 +4,7 @@
 
 **分辨率网络 出品 · 把截图留在手边。**
 
-适用于 Windows 10/11 x64 的桌面截图收纳工具，支持截图、标注、取色与桌面贴图。使用 WPF / .NET Framework 4.8，无第三方依赖，日常使用可离线。Windows 实现独立编写。
+适用于 Windows 10/11 x64 的桌面截图收纳工具，支持截图、标注、取色与桌面贴图。基础程序使用 WPF / .NET Framework 4.8。1.1.0 提供纯截图版和文字识别版，文字识别版可直接在原图选择和复制文字。
 
 ## 特别致谢
 
@@ -14,11 +14,18 @@
 
 **[下载最新 Windows x64 安装包与免安装版](https://github.com/super-eggs/snapline-windows/releases/latest)** · [全部版本](https://github.com/super-eggs/snapline-windows/releases)
 
-从发布页下载安装包后双击安装，再从开始菜单打开。安装到当前用户目录，无需管理员权限。可从 Windows 设置卸载，卸载会保留本地截图与配置。免安装版解压后即可运行。
+从 1.1.0 起，可以按需要选择一个版本下载。
+
+| 版本 | 安装包 | 免安装包 |
+| --- | --- | --- |
+| 纯截图版 | `Snapline-Setup-1.1.0-x64.exe` | `Snapline-Portable-1.1.0-x64.zip` |
+| 文字识别版（含离线提字） | `Snapline-OCR-Setup-1.1.0-x64.exe` | `Snapline-OCR-Portable-1.1.0-x64.zip` |
+
+双击安装包，再从开始菜单打开。安装到当前用户目录，无需管理员权限。可从 Windows 设置卸载，卸载会保留本地截图与配置。免安装包一次解压后即可运行 `Snapline.exe`。
 
 从 1.0.2 起，安装包和免安装版文件名带有版本号。运行后右键系统托盘中的 Snapline 图标，菜单顶部会显示「当前运行版本」。
 
-从 1.0.3 起，右键托盘图标可手动「检查更新」。检查时只向 GitHub 查询公开版本信息。安装版经确认后下载安装包并校验 SHA-256，完成截图保存后退出并打开安装向导，可覆盖原目录升级并保留截图和设置。需要保留的贴图请在升级前另存。免安装版会在浏览器中打开新版 ZIP 的下载地址，退出旧版后解压运行新版即可。
+从 1.0.3 起，右键托盘图标可手动「检查更新」。检查时只向 GitHub 查询公开版本信息。从 1.1.0 起，更新会匹配当前使用的版本。安装版经确认后下载安装包并校验 SHA-256，完成截图保存后退出并打开安装向导，可覆盖原目录升级并保留截图和设置。需要保留的贴图请在升级前另存。免安装版会在浏览器中打开新版 ZIP 的下载地址，退出旧版后解压运行新版即可。
 
 需要 .NET Framework 4.8 或更高版本。当前程序和安装包未进行代码签名，Windows 可能提示未知发布者或 SmartScreen 警告；请核对下载来源与 Release 中的 SHA-256 校验值。
 
@@ -58,6 +65,13 @@
 
 首次运行不读取当前剪贴板内容；只收集之后发生的变化。仅在主动启用开机自启时登记当前用户启动项，不更改系统截图配置。
 
+## 离线提取文字
+
+文字识别版已内置运行环境和模型，安装后即可离线提字。
+
+- 截图框选后或打开晾衣绳里的图片预览，点击工具栏「提取文字」。识别完成后在原图拖选，按 Ctrl+C 或点击复制图标。Ctrl+A 选中已识别的全部文字。
+- 按 Esc 或再次点击「提取文字」可退出提字模式或取消识别，回到截图或图片预览。仍可继续标注、保存或复制图片。
+
 ## 界面预览
 
 以下为软件实际界面导出，使用示例数据；桌面背景为示意，不含用户截图。
@@ -88,15 +102,24 @@ Windows PowerShell 中运行：
 
 ## 打包与发布
 
-安装 [Inno Setup](https://jrsoftware.org/isinfo.php) 后，执行 `./build.ps1 -Test` 和 `./package.ps1`，产物在 `artifacts/release/`：安装包、免安装 ZIP 和 SHA-256 校验文件。可用 `./package.ps1 -ISCC '编译器绝对路径'` 指定编译器。CI 固定使用允许商业用途的 [6.4.3 版本](https://github.com/jrsoftware/issrc/blob/is-6_4_3/license.txt)，下载时校验 SHA-256；如升级打包工具，需重新核对许可与兼容性。
+在 Windows x64 安装 Inno Setup 和 uv 后，执行以下命令打包两个版本。[Inno Setup](https://jrsoftware.org/isinfo.php) · [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
-`./installer/test-install.ps1` 在当前用户未安装 Snapline 时执行隔离安装、安装文件校验、快捷方式和注册检查、安装后窗口冒烟检查及卸载验证。它使用临时安装目录，不启动真实截图收集。
+```powershell
+./build.ps1 -Test
+./build.ps1 -Ocr
+./build-recognition.ps1
+./package.ps1 -OcrBuildDirectory artifacts/ocr-build
+```
 
-维护者发布新版本时，更新 `src/AssemblyInfo.cs` 两个版本号及 `src/app.manifest` 版本，更新 `.github/release-notes.md`，提交后推送对应的 `v主.次.补丁` 标签。GitHub Actions 自动构建、验证和发布。发布资产使用程序文件版本命名，例如 `Snapline-Setup-1.0.2-x64.exe` 和 `Snapline-Portable-1.0.2-x64.zip`。下载链接指向最新 Release 的资产列表。
+`artifacts/release/` 会生成两个版本各自的安装包和免安装 ZIP，以及 `SHA256SUMS.txt`。可用 `-ISCC '编译器绝对路径'` 指定编译器，用 `-BuildDirectory` 和 `-OutputDirectory` 指定路径。仅打包纯截图版时，执行 `./build.ps1 -Test` 和 `./package.ps1`。CI 固定使用允许商业用途的 Inno Setup 6.4.3，并校验下载的编译器。[Inno Setup 6.4.3 许可](https://github.com/jrsoftware/issrc/blob/is-6_4_3/license.txt)
 
-推送与程序版本匹配的 `release-check/v主.次.补丁` 标签，可演练同一套构建、安装检查和上传流程。演练使用临时 GitHub Release 草稿，核对三个文件后删除草稿。演练完成后可删除演练标签。
+`./installer/test-install.ps1` 在当前用户未安装 Snapline 时执行隔离安装、安装文件校验、快捷方式和注册检查、安装后窗口冒烟检查及卸载验证。加上 `-Ocr` 可测试文字识别版，包括用内置组件识别合成图片。测试使用临时安装目录和示例数据。
 
-正式发布完成后，GitHub Actions 从 GitHub Release 读取版本说明和已上传的下载文件，生成中英文官网的静态更新日志，由 Cloudflare Pages 发布。发布说明中的 `## 中文更新` 和 `## English updates` 分别用于中英文页面，在每个标题下用列表填写更新要点。需要重新同步已发布的版本时，可手动运行 GitHub Actions 的 `Sync website release notes`。
+维护者发布新版本时，更新 `src/AssemblyInfo.cs` 两个版本号及 `src/app.manifest` 版本，更新 `.github/release-notes.md`，提交后推送对应的 `v主.次.补丁` 标签。GitHub Actions 自动构建、验证并发布两个版本的下载文件。发布资产使用程序文件版本命名。
+
+推送与程序版本匹配的 `release-check/v主.次.补丁` 标签，可演练同一套构建、安装检查和上传流程。演练使用临时 GitHub Release 草稿，核对四个下载文件和校验文件后删除草稿。演练完成后可删除演练标签。
+
+正式发布完成后，GitHub Actions 从 GitHub Release 读取版本说明和已上传的下载文件，生成中英文官网的更新日志和下载入口，由 Cloudflare Pages 发布。发布说明中的 `## 中文更新` 和 `## English updates` 分别用于中英文页面，在每个标题下用列表填写更新要点。需要重新同步已发布的版本时，可手动运行 GitHub Actions 的 `Sync website release notes`。
 
 ## 验收边界
 

@@ -1,8 +1,10 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const releasePage = 'https://github.com/super-eggs/snapline-windows/releases';
-const start = '        <!-- releases:start -->';
-const end = '        <!-- releases:end -->';
+const historyStart = '        <!-- releases:start -->';
+const historyEnd = '        <!-- releases:end -->';
+const downloadsStart = '          <!-- downloads:start -->';
+const downloadsEnd = '          <!-- downloads:end -->';
 const visibleReleaseCount = 5;
 const historicalNotes = {
   'v1.0.0': {
@@ -24,10 +26,14 @@ const historicalNotes = {
 const labels = {
   zh: {
     latest: '最新版本', installer: '下载安装包', portable: '下载免安装版',
+    downloads: '下载安装包或免安装版', screenshotInstaller: '下载纯截图版', screenshotPortable: '纯截图版免安装包',
+    ocrInstaller: '下载文字识别版', ocrPortable: '文字识别版免安装包',
     release: tag => `${tag} 发布页`, older: count => `查看更早的更新（${count} 条）`,
   },
   en: {
     latest: 'Latest release', installer: 'Download installer', portable: 'Download portable ZIP',
+    downloads: 'Download installer or portable ZIP', screenshotInstaller: 'Download screenshot edition', screenshotPortable: 'Screenshot edition portable ZIP',
+    ocrInstaller: 'Download OCR edition', ocrPortable: 'OCR edition portable ZIP',
     release: tag => `${tag} release`, older: count => `View ${count} earlier release${count === 1 ? '' : 's'}`,
   },
 };
@@ -100,8 +106,10 @@ function releaseItem(release, locale, latest) {
   }
   lines.push('            <div class="changelog-links">');
   for (const [url, title, icon] of [
-    [release.installer, label.installer, '↓'],
-    [release.portable, label.portable, '↓'],
+    [release.installer, release.ocrInstaller ? label.screenshotInstaller : label.installer, '↓'],
+    [release.portable, release.ocrPortable ? label.screenshotPortable : label.portable, '↓'],
+    [release.ocrInstaller, label.ocrInstaller, '↓'],
+    [release.ocrPortable, label.ocrPortable, '↓'],
     [release.url, label.release(release.tag), '↗'],
   ]) {
     if (url) lines.push(`              <a href="${escapeHtml(url)}">${escapeHtml(title)} <span aria-hidden="true">${icon}</span></a>`);
@@ -131,6 +139,30 @@ function releaseHistory(releases, locale) {
   return lines;
 }
 
+function downloadButtons(release, locale) {
+  const label = labels[locale];
+  const button = (url, title) => `<a class="button light-button" href="${escapeHtml(url)}">${escapeHtml(title)} <span aria-hidden="true">↓</span></a>`;
+  if (!release.ocrInstaller || !release.ocrPortable) {
+    return ['          ' + button(`${releasePage}/latest`, label.downloads)];
+  }
+  return [
+    '          <div class="download-choices">',
+    '            ' + button(release.installer, label.screenshotInstaller),
+    '            ' + button(release.ocrInstaller, label.ocrInstaller),
+    '          </div>',
+  ];
+}
+
+function replaceSection(page, start, end, lines, file) {
+  const newline = page.includes('\r\n') ? '\r\n' : '\n';
+  const startAt = page.indexOf(start);
+  const endAt = page.indexOf(end);
+  if (startAt < 0 || endAt <= startAt || page.lastIndexOf(start) !== startAt || page.lastIndexOf(end) !== endAt) {
+    throw new Error(`Missing or duplicate ${start.trim()} markers in ${file}`);
+  }
+  return page.slice(0, startAt + start.length) + newline + lines.join(newline) + newline + page.slice(endAt);
+}
+
 const [, , releaseFile, expectedTag] = process.argv;
 const input = JSON.parse(await readFile(releaseFile, 'utf8'));
 const releases = input.flat()
@@ -143,6 +175,8 @@ const releases = input.flat()
     url: `${releasePage}/tag/${release.tag_name}`,
     installer: downloadAsset(release, 'Setup', 'exe'),
     portable: downloadAsset(release, 'Portable', 'zip'),
+    ocrInstaller: downloadAsset(release, 'OCR-Setup', 'exe'),
+    ocrPortable: downloadAsset(release, 'OCR-Portable', 'zip'),
   }))
   .sort(compareVersions);
 
@@ -153,14 +187,8 @@ if (expectedTag && !releases.some(release => release.tag === expectedTag && rele
 
 const pages = await Promise.all([['zh', 'docs/index.html'], ['en', 'docs/en/index.html']].map(async ([locale, file]) => {
   const page = await readFile(file, 'utf8');
-  const newline = page.includes('\r\n') ? '\r\n' : '\n';
-  const startAt = page.indexOf(start);
-  const endAt = page.indexOf(end);
-  if (startAt < 0 || endAt <= startAt || page.lastIndexOf(start) !== startAt || page.lastIndexOf(end) !== endAt) {
-    throw new Error(`Missing or duplicate changelog markers in ${file}`);
-  }
-  const history = releaseHistory(releases, locale).join(newline);
-  return [file, page.slice(0, startAt + start.length) + newline + history + newline + page.slice(endAt)];
+  const history = replaceSection(page, historyStart, historyEnd, releaseHistory(releases, locale), file);
+  return [file, replaceSection(history, downloadsStart, downloadsEnd, downloadButtons(releases[0], locale), file)];
 }));
 
 await Promise.all([...pages, ['docs/releases.json', JSON.stringify(releases, null, 2) + '\n']]

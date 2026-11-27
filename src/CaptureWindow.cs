@@ -22,7 +22,10 @@ namespace Snapline
         private readonly System.Windows.Shapes.Rectangle[] outline = new System.Windows.Shapes.Rectangle[4];
         private readonly Border toolbar;
         private readonly Button colorPickerButton;
+        private readonly Button ocrButton, ocrCopyButton;
         private readonly TextBlock hint;
+        private ImageText imageText;
+        private string ocrNotice;
         private InkCanvas ink;
         private AnnotationTools annotations;
         private readonly WrapPanel annotationHost = new WrapPanel();
@@ -76,10 +79,16 @@ namespace Snapline
             hint = new TextBlock { Foreground = Ui.Text, Background = Ui.Surface, Padding = new Thickness(10, 6, 10, 6), FontSize = 12, TextWrapping = TextWrapping.Wrap, IsHitTestVisible = false };
             stage.Children.Add(hint);
             var tools = new WrapPanel(); tools.Children.Add(annotationHost);
-            annotationHost.AddHandler(Button.ClickEvent, new RoutedEventHandler(delegate { SetColorPicking(false); }));
+            annotationHost.AddHandler(Button.ClickEvent, new RoutedEventHandler(delegate { EndTextSelection(); SetColorPicking(false); }));
             var actions = new WrapPanel(); actions.Children.Add(Ui.CompactDivider());
             colorPickerButton = AddAction(actions, "picker", "取色器：点击选区或按 C 复制原图颜色，Esc 退出取色", ToggleColorPicker);
             colorPickerButton.IsEnabled = false;
+            if (Recognition.Included)
+            {
+                ocrButton = AddAction(actions, "ocr", "提取文字（在原图拖选）", RecognizeSelection);
+                ocrCopyButton = AddAction(actions, "ocrCopy", "复制选中的文字（Ctrl+C）", delegate { if (imageText != null) imageText.CopySelection(); }, true);
+                ocrCopyButton.Visibility = Visibility.Collapsed;
+            }
             AddAction(actions, "reselect", "重新框选：重新选择截图区域", Reset);
             AddAction(actions, "save", "另存为 PNG（Ctrl+S）", SaveAs);
             if (pinImage != null) AddAction(actions, "pin", "贴到屏幕（Ctrl+T）", PinSelection);
@@ -112,7 +121,8 @@ namespace Snapline
             stage.LostMouseCapture += delegate { if (dragging) { dragging = false; if (selected) SetSelection(before); else Reset(); } };
             stage.PreviewMouseRightButtonDown += delegate(object sender, MouseButtonEventArgs e)
             {
-                if (pickingColor) SetColorPicking(false);
+                if (imageText != null) EndTextSelection();
+                else if (pickingColor) SetColorPicking(false);
                 else if (annotations != null && annotations.IsTextEditing) annotations.DiscardText();
                 else if (selected) Reset(); else Close(); e.Handled = true;
             };
@@ -121,7 +131,7 @@ namespace Snapline
             hoverTimer.Tick += DetectHover;
             Closed += delegate
             {
-                closed = true; hoverVersion++; hoverTimer.Stop(); SetColorPicking(false);
+                closed = true; hoverVersion++; hoverTimer.Stop(); EndTextSelection(); SetColorPicking(false);
                 bool largeCapture = (long)this.screen.Image.PixelWidth * this.screen.Image.PixelHeight >= 1280 * 720;
                 desktop.Source = null;
                 selectionLayer.Children.Clear(); annotationHost.Children.Clear();
@@ -146,6 +156,7 @@ namespace Snapline
         private void ToggleColorPicker()
         {
             if (!selected || dragging) return;
+            EndTextSelection();
             SetColorPicking(!pickingColor);
         }
         private void SetColorPicking(bool enabled)
@@ -238,6 +249,11 @@ namespace Snapline
         {
             if (finishing || toolbar.IsMouseOver || annotations != null && annotations.IsTextEditing) return;
             Point point = Clamp(e.GetPosition(stage));
+            if (imageText != null)
+            {
+                if (!selection.Contains(point)) { EndTextSelection(); e.Handled = true; }
+                return;
+            }
             if (pickingColor)
             {
                 if (selection.Contains(point)) { UpdateLens(point); CopyPickedColor(); }
@@ -255,6 +271,7 @@ namespace Snapline
         }
         private void Move(object sender, MouseEventArgs e)
         {
+            if (imageText != null) return;
             Point point = Clamp(e.GetPosition(stage));
             UpdateLens(point);
             if (!dragging)
@@ -311,6 +328,7 @@ namespace Snapline
         }
         internal void SetSelection(Rect value)
         {
+            EndTextSelection();
             SetColorPicking(false);
             hoverVersion++; hoverTimer.Stop();
             var rect = ScreenCapture.PixelRect(value, screen.Image.PixelWidth, screen.Image.PixelHeight);
@@ -355,7 +373,7 @@ namespace Snapline
                     SetOutlineEdge(outline[3], Math.Max(shown.Left, shown.Right - 1), shown.Top, 1, shown.Height);
                 }
             }
-            bool showHandles = selected && !pickingColor && !annotations.HasAnnotations;
+            bool showHandles = selected && imageText == null && !pickingColor && !annotations.HasAnnotations;
             Point[] handlePoints = showHandles ? HandlePoints() : null;
             for (int i = 0; i < handles.Length; i++)
             {
@@ -363,9 +381,12 @@ namespace Snapline
                 if (showHandles) { Point p = handlePoints[i]; Canvas.SetLeft(handles[i], p.X - 3); Canvas.SetTop(handles[i], p.Y - 3); }
             }
             if (ink != null) { Canvas.SetLeft(ink, selection.Left); Canvas.SetTop(ink, selection.Top); }
+            if (imageText != null) { Canvas.SetLeft(imageText, selection.Left); Canvas.SetTop(imageText, selection.Top); }
             selectionLayer.Visibility = dragging ? Visibility.Collapsed : Visibility.Visible;
             string hoverHint = hoverCandidates.Count > 1 ? string.Format("层级 {0}/{1} · 滚轮或 1/2 切换 · 单击选择 · 拖动框选", hoverLevel + 1, hoverCandidates.Count) : "单击选择窗口 · 滚轮或 1/2 切换层级 · 拖动框选";
             hint.Text = pickingColor ? "点击选区或按 C 复制颜色 · Shift 切换 HEX/RGB · Esc 退出取色器" : shown.IsEmpty ? "悬停识别控件 · 拖动框选 · Esc 取消" : string.Format("{0:0} × {1:0} px   {2}", shown.Width, shown.Height, selected ? annotations.HasAnnotations ? "选区已锁定 · 撤销全部标注可调整 · Enter 完成" : "拖动调整 · Shift 等比例标注 · Enter 完成 · Esc 取消" : hoverHint);
+            if (imageText != null) hint.Text = imageText.Status;
+            else if (ocrNotice != null) hint.Text = ocrNotice;
             hint.Measure(new Size(Math.Max(1, stage.Width - 8), double.PositiveInfinity));
             Canvas.SetLeft(hint, Math.Max(4, Math.Min(stage.Width - hint.DesiredSize.Width - 4, shown.IsEmpty ? 20 : shown.Left)));
             double hintTop = shown.IsEmpty ? 20 : shown.Top >= hint.DesiredSize.Height + 8 ? shown.Top - hint.DesiredSize.Height - 8 : shown.Bottom + 8;
@@ -376,7 +397,7 @@ namespace Snapline
                 var area = new Rect(monitor.Left - screen.Bounds.Left, monitor.Top - screen.Bounds.Top, monitor.Width, monitor.Height);
                 area.Intersect(new Rect(0, 0, stage.Width, stage.Height));
                 if (area.IsEmpty || area.Width < 32 || area.Height < 32) area = new Rect(0, 0, stage.Width, stage.Height);
-                toolbar.Visibility = Visibility.Visible; toolbar.MaxWidth = Math.Min(680, area.Width - 16);
+                toolbar.Visibility = Visibility.Visible; toolbar.MaxWidth = Math.Min(imageText == null ? 680 : 720, area.Width - 16);
                 toolbar.Measure(new Size(toolbar.MaxWidth, stage.Height));
                 Canvas.SetLeft(toolbar, Math.Max(area.Left + 8, Math.Min(area.Right - toolbar.DesiredSize.Width - 8, selection.Right - toolbar.DesiredSize.Width)));
                 double below = selection.Bottom + 40;
@@ -391,6 +412,7 @@ namespace Snapline
         private void Reset()
         {
             if (finishing) return;
+            EndTextSelection();
             SetColorPicking(false); colorPickerButton.IsEnabled = false;
             selected = false; selection = Rect.Empty; annotations = null; ink = null; selectionLayer.Children.Clear(); annotationHost.Children.Clear();
             toolbar.Visibility = Visibility.Collapsed; hoverCandidates.Clear(); UpdateHover(pointer);
@@ -400,9 +422,49 @@ namespace Snapline
         {
             return annotations.Render();
         }
+        private async void RecognizeSelection()
+        {
+            if (!selected || finishing || dragging || annotations.IsTextEditing) return;
+            if (imageText != null) { EndTextSelection(); return; }
+            SetColorPicking(false);
+            var engine = Recognition.Find();
+            ocrNotice = engine == null ? Recognition.MissingComponent : null;
+            if (engine == null) { Redraw(); return; }
+            BitmapSource image = RenderSelection();
+            var layer = new ImageText(image.PixelWidth, image.PixelHeight);
+            imageText = layer;
+            layer.StatusChanged += Redraw;
+            selectionLayer.Children.Add(layer);
+            stage.Cursor = null;
+            Ui.Select(ocrButton, true);
+            ocrCopyButton.Visibility = Visibility.Visible;
+            Redraw();
+            layer.Focus();
+            await layer.LoadAsync(engine, image);
+        }
+        private void EndTextSelection()
+        {
+            if (imageText == null && ocrNotice == null) return;
+            ocrNotice = null;
+            if (imageText != null)
+            {
+                imageText.Stop();
+                selectionLayer.Children.Remove(imageText);
+                imageText = null;
+                ocrCopyButton.Visibility = Visibility.Collapsed;
+                Ui.Select(ocrButton, false);
+            }
+            Redraw();
+        }
         private void KeyDownCapture(object sender, KeyEventArgs e)
         {
             if (finishing) { e.Handled = true; return; }
+            if (imageText != null)
+            {
+                if (e.Key == Key.Escape) { EndTextSelection(); e.Handled = true; }
+                else e.Handled = imageText.HandleKey(e);
+                return;
+            }
             if (annotations != null && annotations.IsTextEditing) return;
             Key key = e.Key == Key.System ? e.SystemKey : e.Key;
             bool control = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
@@ -447,12 +509,14 @@ namespace Snapline
         internal void PinSelection()
         {
             if (!selected || finishing || pinImage == null) return;
+            EndTextSelection();
             try { pinImage(RenderSelection()); Close(); }
             catch (NotSupportedException ex) { MessageBox.Show(this, ex.Message, "Snapline 贴图"); }
         }
         private async void Finish()
         {
             if (!selected || finishing) return;
+            EndTextSelection();
             finishing = true; IsEnabled = false;
             try
             {
@@ -471,6 +535,7 @@ namespace Snapline
         private async void SaveAs()
         {
             if (!selected || finishing) return;
+            EndTextSelection();
             annotations.CommitText();
             var dialog = new Microsoft.Win32.SaveFileDialog { Filter = "PNG 图片|*.png", FileName = "截图-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".png" };
             if (dialog.ShowDialog(this) != true) return;

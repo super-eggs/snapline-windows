@@ -1,11 +1,21 @@
 #ifndef AppVersion
   #error Build Snapline and use package.ps1 to supply AppVersion.
 #endif
+#ifndef SnaplineBuildDir
+  #define SnaplineBuildDir "..\dist"
+#endif
 #define SnaplineAppId "{BBFEDE84-A60E-4F11-9CC5-1EE29BA57425}"
+#ifdef SnaplineOcr
+  #define SnaplineName "Snapline OCR"
+  #define SetupName "Snapline-OCR-Setup"
+#else
+  #define SnaplineName "Snapline"
+  #define SetupName "Snapline-Setup"
+#endif
 
 [Setup]
 AppId={{#SnaplineAppId}
-AppName=Snapline
+AppName={#SnaplineName}
 AppVersion={#AppVersion}
 VersionInfoVersion={#AppVersion}
 AppPublisher=super-eggs
@@ -20,7 +30,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 OutputDir=..\artifacts\release
-OutputBaseFilename=Snapline-Setup-{#AppVersion}-x64
+OutputBaseFilename={#SetupName}-{#AppVersion}-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -33,9 +43,12 @@ RestartApplications=no
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 
 [Files]
-Source: "..\dist\Snapline.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\dist\Snapline.exe.config"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SnaplineBuildDir}\Snapline.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SnaplineBuildDir}\Snapline.exe.config"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
+#ifdef SnaplineOcr
+Source: "{#SnaplineBuildDir}\recognition\*"; DestDir: "{app}\recognition"; Flags: ignoreversion recursesubdirs createallsubdirs
+#endif
 
 [Icons]
 Name: "{group}\Snapline"; Filename: "{app}\Snapline.exe"

@@ -17,9 +17,13 @@ namespace Snapline
             const string downloads = "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/";
             const string setup = "Snapline-Setup-1.0.10-x64.exe";
             const string zip = "Snapline-Portable-1.0.10-x64.zip";
+            const string ocrSetup = "Snapline-OCR-Setup-1.0.10-x64.exe";
+            const string ocrZip = "Snapline-OCR-Portable-1.0.10-x64.zip";
             var json = "{\"tag_name\":\"v1.0.10\",\"body\":\"## 中文更新\\n- 手动检查更新\\n## English updates\\n- Manual checks\",\"assets\":["
                 + "{\"name\":\"" + setup + "\",\"state\":\"uploaded\",\"browser_download_url\":\"" + downloads + setup + "\"},"
-                + "{\"name\":\"" + zip + "\",\"state\":\"uploaded\",\"browser_download_url\":\"" + downloads + zip + "\"}]}";
+                + "{\"name\":\"" + zip + "\",\"state\":\"uploaded\",\"browser_download_url\":\"" + downloads + zip + "\"},"
+                + "{\"name\":\"" + ocrSetup + "\",\"state\":\"uploaded\",\"browser_download_url\":\"" + downloads + ocrSetup + "\"},"
+                + "{\"name\":\"" + ocrZip + "\",\"state\":\"uploaded\",\"browser_download_url\":\"" + downloads + ocrZip + "\"}]}";
             ReleaseUpdates.Release release;
             using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(json)))
                 release = (ReleaseUpdates.Release)new DataContractJsonSerializer(typeof(ReleaseUpdates.Release)).ReadObject(stream);
@@ -27,12 +31,17 @@ namespace Snapline
                 && ReleaseUpdates.NewerRelease(release, new Version("1.0.10.0")) == null
                 && ReleaseUpdates.NewerRelease(release, new Version("1.1.0.0")) == null,
                 "update compares numeric versions and offers neither an equal version nor a downgrade");
-            check(release.Notes() == "• 手动检查更新" && release.Package(true).Url == downloads + setup
-                && release.Package(false).Url == downloads + zip, "update reads Chinese release notes and selects the correct published x64 asset");
+            check(release.Notes() == "• 手动检查更新" && release.Package(true, false).Url == downloads + setup
+                && release.Package(false, false).Url == downloads + zip, "update reads Chinese notes and selects the published screenshot edition");
+            check(release.Package(true, true).Url == downloads + ocrSetup && release.Package(false, true).Url == downloads + ocrZip,
+                "update selects the published OCR edition for installed and portable copies");
 
+            release.Assets[2].State = "open";
+            check(release.Package(true, true) == null && release.Package(true, false) != null,
+                "update does not replace a missing OCR installer with the screenshot edition");
             release.Assets[0].Url = "https://example.com/" + setup;
             release.Assets[1].State = "open";
-            check(release.Package(true) == null && release.Package(false) == null, "update rejects a foreign URL and a pending asset");
+            check(release.Package(true, false) == null && release.Package(false, false) == null, "update rejects a foreign URL and a pending asset");
             release.Prerelease = true;
             bool rejected = false;
             try { ReleaseUpdates.NewerRelease(release, new Version("1.0.9.0")); }
@@ -62,6 +71,8 @@ namespace Snapline
             const string cdn = "https://release-assets.githubusercontent.com/test/checksums";
             const string setup = "Snapline-Setup-1.0.12-x64.exe";
             const string zip = "Snapline-Portable-1.0.12-x64.zip";
+            const string ocrSetup = "Snapline-OCR-Setup-1.0.12-x64.exe";
+            const string ocrZip = "Snapline-OCR-Portable-1.0.12-x64.zip";
             string setupHash = new string('a', 64), zipHash = new string('b', 64);
             string checksums = setupHash + "  " + setup + "\r\n" + zipHash + "  " + zip + "\r\n";
             string target = manifestUrl;
@@ -84,12 +95,22 @@ namespace Snapline
             {
                 var current = new Version("1.0.10.0");
                 var release = ReleaseUpdates.CheckLatestAsync(client, current).GetAwaiter().GetResult();
-                var installer = release.Package(true);
-                var portable = release.Package(false);
+                var installer = release.Package(true, false);
+                var portable = release.Package(false, false);
                 check(release.Tag == "v1.0.12" && installer.Url == downloads + setup
                     && installer.FromChecksumManifest && installer.Digest == "sha256:" + setupHash
                     && portable.Url == downloads + zip && portable.Digest == "sha256:" + zipHash
                     && calls.Count == 4, "a GitHub 403 falls back to the stable release and its official versioned checksums");
+                check(release.Package(true, true) == null && release.Package(false, true) == null,
+                    "checksum fallback still supports old releases with only the screenshot edition");
+
+                manifest = checksums + setupHash + "  " + ocrSetup + "\r\n" + zipHash + "  " + ocrZip + "\r\n";
+                release = ReleaseUpdates.CheckLatestAsync(client, current).GetAwaiter().GetResult();
+                installer = release.Package(true, true);
+                portable = release.Package(false, true);
+                check(installer.Url == downloads + ocrSetup && installer.FromChecksumManifest && installer.Digest == "sha256:" + setupHash
+                    && portable.Url == downloads + ocrZip && portable.Digest == "sha256:" + zipHash,
+                    "checksum fallback selects the OCR installer and ZIP with their published hashes");
 
                 status = 429;
                 calls.Clear();
