@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f8fc">
-  <meta name="description" content="截图晾衣绳 Snapline，分辨率网络出品的 Windows 桌面截图工具。把近期截图收在屏幕上方，单击复制、双击预览，支持标注、取色与桌面贴图。本地运行，无需账号。">
+  <meta name="description" content="截图晾衣绳 Snapline，分辨率网络出品的 Windows 桌面截图工具。把近期截图收在屏幕上方，随手复制、标注和贴图。文字识别版支持在原图上离线提取中英文。">
   <meta property="og:title" content="截图晾衣绳 Snapline · 把截图留在手边">
   <meta property="og:description" content="截下来，挂起来，随手就能用。分辨率网络出品的 Windows 桌面截图工具。">
   <meta property="og:type" content="website">
@@ -41,7 +41,7 @@
         <h1 id="hero-title">刚截的图，<br><span>一直在手边。</span></h1>
       </div>
       <div class="hero-details">
-        <p class="hero-description">用一根晾衣绳，收好最近的截图。<br>随手复制、圈出重点，或贴在桌面慢慢看。</p>
+        <p class="hero-description">用一根晾衣绳，收好最近的截图。<br>随手复制、圈出重点、贴到桌面，也能<a href="#ocr">提取截图文字</a>。</p>
         <div class="hero-actions"><a class="button primary" href="#download">获取 Windows 版 <span aria-hidden="true">↗</span></a><a class="text-link" href="#try">在线试用 <span aria-hidden="true">↓</span></a></div>
       </div>
     </section>
@@ -156,6 +156,15 @@
     <section class="showcase-section section-space" id="features" aria-labelledby="features-title">
       <div class="container">
         <div class="section-heading reveal"><h2 id="features-title">截下来。挂起来。<br><span class="muted-heading">下一秒，就用得上。</span></h2><p>不用在文件夹里来回找，也不用打断正在做的事。</p></div>
+        <article class="ocr-feature reveal" id="ocr" aria-labelledby="ocr-title">
+          <div class="ocr-copy">
+            <h3 id="ocr-title">直接复制截图中的文字</h3>
+            <p>在截图或图片预览中点击<strong>「提取文字」</strong>，在原图上拖选要复制的中英文，再按 <kbd>Ctrl+C</kbd>。</p>
+            <p>文字识别全程在本机离线完成。</p>
+            <a class="text-link" href="#download">获取文字识别版 <span aria-hidden="true">↓</span></a>
+          </div>
+          <button class="screenshot-button ocr-image" type="button" data-image="images/07-text-recognition.png" data-title="在原图上选中文字" aria-label="放大查看文字识别界面"><img src="images/07-text-recognition.png" alt="Snapline 截图界面，原图上的英文 Review 和中文项目编号已选中，底部工具栏显示复制文字图标" width="1050" height="640" loading="lazy"></button>
+        </article>
         <div class="showcase reveal">
           <div class="demo-tabs" role="tablist" aria-label="查看软件功能">
             <button id="tab-shelf" type="button" role="tab" aria-selected="true" aria-controls="panel-shelf" tabindex="0">晾衣绳收纳</button>
