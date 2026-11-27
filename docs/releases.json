@@ -1,5 +1,23 @@
 [
   {
+    "tag": "v1.1.0",
+    "date": "2026-11-27",
+    "notes": {
+      "zh": [
+        "新增文字识别版，安装后可在截图和图片预览中离线提取中英文。直接在原图拖选文字，按 Ctrl+C 或点击复制图标即可复制。"
+      ],
+      "en": [
+        "The new OCR edition includes offline Chinese and English text extraction. Select text directly on a screenshot or in the image preview, then press Ctrl+C or click Copy."
+      ],
+      "original": []
+    },
+    "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.1.0",
+    "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.1.0/Snapline-Setup-1.1.0-x64.exe",
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.1.0/Snapline-Portable-1.1.0-x64.zip",
+    "ocrInstaller": "https://github.com/super-eggs/snapline-windows/releases/download/v1.1.0/Snapline-OCR-Setup-1.1.0-x64.exe",
+    "ocrPortable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.1.0/Snapline-OCR-Portable-1.1.0-x64.zip"
+  },
+  {
     "tag": "v1.0.14",
     "date": "2026-11-26",
     "notes": {
