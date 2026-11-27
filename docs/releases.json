@@ -15,7 +15,9 @@
     },
     "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.14",
     "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.14/Snapline-Setup-1.0.14-x64.exe",
-    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.14/Snapline-Portable-1.0.14-x64.zip"
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.14/Snapline-Portable-1.0.14-x64.zip",
+    "ocrInstaller": null,
+    "ocrPortable": null
   },
   {
     "tag": "v1.0.13",
@@ -33,7 +35,9 @@
     },
     "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.13",
     "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.13/Snapline-Setup-1.0.13-x64.exe",
-    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.13/Snapline-Portable-1.0.13-x64.zip"
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.13/Snapline-Portable-1.0.13-x64.zip",
+    "ocrInstaller": null,
+    "ocrPortable": null
   },
   {
     "tag": "v1.0.12",
@@ -49,7 +53,9 @@
     },
     "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.12",
     "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.12/Snapline-Setup-1.0.12-x64.exe",
-    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.12/Snapline-Portable-1.0.12-x64.zip"
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.12/Snapline-Portable-1.0.12-x64.zip",
+    "ocrInstaller": null,
+    "ocrPortable": null
   },
   {
     "tag": "v1.0.11",
@@ -65,7 +71,9 @@
     },
     "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.11",
     "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.11/Snapline-Setup-1.0.11-x64.exe",
-    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.11/Snapline-Portable-1.0.11-x64.zip"
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.11/Snapline-Portable-1.0.11-x64.zip",
+    "ocrInstaller": null,
+    "ocrPortable": null
   },
   {
     "tag": "v1.0.10",
@@ -83,7 +91,9 @@
     },
     "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.10",
     "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/Snapline-Setup-1.0.10-x64.exe",
-    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/Snapline-Portable-1.0.10-x64.zip"
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.10/Snapline-Portable-1.0.10-x64.zip",
+    "ocrInstaller": null,
+    "ocrPortable": null
   },
   {
     "tag": "v1.0.9",
@@ -107,7 +117,9 @@
     },
     "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.9",
     "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.9/Snapline-Setup-1.0.9-x64.exe",
-    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.9/Snapline-Portable-1.0.9-x64.zip"
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.9/Snapline-Portable-1.0.9-x64.zip",
+    "ocrInstaller": null,
+    "ocrPortable": null
   },
   {
     "tag": "v1.0.4",
@@ -125,7 +137,9 @@
     },
     "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.4",
     "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.4/Snapline-Setup-1.0.4-x64.exe",
-    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.4/Snapline-Portable-1.0.4-x64.zip"
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.4/Snapline-Portable-1.0.4-x64.zip",
+    "ocrInstaller": null,
+    "ocrPortable": null
   },
   {
     "tag": "v1.0.3",
@@ -147,7 +161,9 @@
     },
     "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.3",
     "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.3/Snapline-Setup-1.0.3-x64.exe",
-    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.3/Snapline-Portable-1.0.3-x64.zip"
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.3/Snapline-Portable-1.0.3-x64.zip",
+    "ocrInstaller": null,
+    "ocrPortable": null
   },
   {
     "tag": "v1.0.2",
@@ -168,7 +184,9 @@
     },
     "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.2",
     "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Setup-1.0.2-x64.exe",
-    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Portable-1.0.2-x64.zip"
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.2/Snapline-Portable-1.0.2-x64.zip",
+    "ocrInstaller": null,
+    "ocrPortable": null
   },
   {
     "tag": "v1.0.1",
@@ -187,7 +205,9 @@
     },
     "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.1",
     "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.1/Snapline-Setup-x64.exe",
-    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.1/Snapline-Portable-x64.zip"
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.1/Snapline-Portable-x64.zip",
+    "ocrInstaller": null,
+    "ocrPortable": null
   },
   {
     "tag": "v1.0.0",
@@ -203,6 +223,8 @@
     },
     "url": "https://github.com/super-eggs/snapline-windows/releases/tag/v1.0.0",
     "installer": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.0/Snapline-Setup-x64.exe",
-    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.0/Snapline-Portable-x64.zip"
+    "portable": "https://github.com/super-eggs/snapline-windows/releases/download/v1.0.0/Snapline-Portable-x64.zip",
+    "ocrInstaller": null,
+    "ocrPortable": null
   }
 ]
